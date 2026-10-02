@@ -9,3 +9,5 @@ name = "acearchive-data-connector"
 path = "src/bin/connector.rs"
 
 [dependencies]
+anyhow = "1.0.104"
+reqwest = "0.13.5"
