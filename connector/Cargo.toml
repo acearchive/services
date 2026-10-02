@@ -1,0 +1,11 @@
+[package]
+name = "acearchive-data-connector"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90.0"
+
+[[bin]]
+name = "acearchive-data-connector"
+path = "src/bin/connector.rs"
+
+[dependencies]
