@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod cache;
 mod config;
 mod logger;
 mod omeka;

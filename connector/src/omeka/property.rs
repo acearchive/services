@@ -1,7 +1,52 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct InternalId(u32);
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct AceId(String);
+
+impl AsRef<str> for AceId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for AceId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct AceSlug(String);
+
+impl AsRef<str> for AceSlug {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for AceSlug {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct AceFilename(String);
+
+impl AsRef<str> for AceFilename {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for AceFilename {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ResourceType {
@@ -17,6 +62,12 @@ impl ResourceType {
             ResourceType::ItemSet => "item_sets",
             ResourceType::Media => "media",
         }
+    }
+}
+
+impl AsRef<str> for ResourceType {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
@@ -49,6 +100,12 @@ impl Property {
             Property::AceFilename => "ace:filename",
             Property::AceFilenameAlias => "ace:filenameAlias",
         }
+    }
+}
+
+impl AsRef<str> for Property {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
