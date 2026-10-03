@@ -31,13 +31,13 @@ impl FindQuery {
 
 #[derive(Debug)]
 pub struct Client {
-    pub base_url: String,
+    pub base_url: reqwest::Url,
     pub key: ApiKey,
     pub client: reqwest::Client,
 }
 
 impl Client {
-    fn new(base_url: String, key: ApiKey) -> Self {
+    fn new(base_url: reqwest::Url, key: ApiKey) -> Self {
         Client {
             base_url,
             key,
@@ -57,7 +57,7 @@ impl Client {
     }
 
     fn base_endpoint(&self) -> anyhow::Result<reqwest::Url> {
-        let mut url = reqwest::Url::parse(&self.base_url)?;
+        let mut url = self.base_url.clone();
 
         url.path_segments_mut()
             .map_err(|_| anyhow::anyhow!("Failed to build Omeka API endpoint path."))?

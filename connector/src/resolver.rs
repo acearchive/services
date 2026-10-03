@@ -21,13 +21,13 @@ pub struct MediaLocation {
 }
 
 #[derive(Debug)]
-pub struct Store {
+pub struct Resolver {
     client: omeka::Client,
 }
 
-impl Store {
+impl Resolver {
     pub fn new(client: omeka::Client) -> Self {
-        Store { client }
+        Resolver { client }
     }
 
     async fn resolve_canonical_item(
@@ -52,7 +52,7 @@ impl Store {
             ace_slug: Vec<PropertyValue<omeka::AceSlug>>,
         }
 
-        Ok(Some(match key {
+        let (canonical_item_key, internal_item_id) = match key {
             ItemKey::ById(id) => {
                 let response = self
                     .client
@@ -148,6 +148,18 @@ impl Store {
                     )
                 }
             }
-        }))
+        };
+
+        Ok(Some((canonical_item_key, internal_item_id)))
+    }
+
+    pub async fn resolve_media(&self, key: MediaKey) -> anyhow::Result<Option<MediaLocation>> {
+        let (canonical_item_key, internal_item_id) =
+            match self.resolve_canonical_item(key.item).await? {
+                Some((canonical_item_key, internal_id)) => (canonical_item_key, internal_id),
+                None => return Ok(None),
+            };
+
+        todo!()
     }
 }

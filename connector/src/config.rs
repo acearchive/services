@@ -31,8 +31,12 @@ fn get_config(key: &str) -> anyhow::Result<String> {
         .ok_or_else(|| anyhow::anyhow!("Not set in config: {}", key))
 }
 
-pub fn omeka_url() -> anyhow::Result<String> {
-    get_config("OMEKA_URL")
+pub fn omeka_url() -> anyhow::Result<reqwest::Url> {
+    Ok(reqwest::Url::parse(&get_config("OMEKA_URL")?)?)
+}
+
+pub fn files_url() -> anyhow::Result<reqwest::Url> {
+    Ok(reqwest::Url::parse(&get_config("FILES_URL")?)?)
 }
 
 pub fn omeka_key_id() -> anyhow::Result<omeka::ApiKeyId> {
