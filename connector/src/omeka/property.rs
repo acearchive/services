@@ -1,9 +1,17 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+use serde::Deserialize;
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Deserialize)]
 pub struct InternalId(u32);
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+impl fmt::Display for InternalId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Deserialize)]
 pub struct AceId(String);
 
 impl AsRef<str> for AceId {
@@ -18,7 +26,7 @@ impl fmt::Display for AceId {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Deserialize)]
 pub struct AceSlug(String);
 
 impl AsRef<str> for AceSlug {
@@ -112,5 +120,18 @@ impl AsRef<str> for Property {
 impl fmt::Display for Property {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Debug)]
+pub enum ResourceFilter {
+    ItemId(InternalId),
+}
+
+impl ResourceFilter {
+    pub fn as_query_param(&self) -> (String, String) {
+        match self {
+            ResourceFilter::ItemId(id) => (String::from("item_id"), id.0.to_string()),
+        }
     }
 }

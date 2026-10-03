@@ -5,7 +5,10 @@ use std::{
 
 use lru::LruCache;
 
-use crate::omeka;
+use super::{
+    omeka,
+    store::{ItemKey, MediaKey},
+};
 
 static URL_CACHE: LazyLock<Mutex<LruCache<UrlKey, String>>> =
     LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(1000).unwrap())));
@@ -20,6 +23,21 @@ pub enum UrlKey {
         slug: omeka::AceSlug,
         filename: omeka::AceFilename,
     },
+}
+
+impl From<MediaKey> for UrlKey {
+    fn from(key: MediaKey) -> Self {
+        match key.item {
+            ItemKey::ById(id) => Self::MediaById {
+                id,
+                filename: key.filename,
+            },
+            ItemKey::BySlug(slug) => Self::MediaBySlug {
+                slug,
+                filename: key.filename,
+            },
+        }
+    }
 }
 
 pub fn put_url(key: UrlKey, url: &reqwest::Url) {
