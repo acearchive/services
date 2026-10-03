@@ -1,5 +1,7 @@
-use crate::config;
 use secrecy::{ExposeSecret, SecretString};
+
+use super::property::Property;
+use crate::config;
 
 #[derive(Debug)]
 pub struct ApiKeyId(SecretString);
@@ -72,10 +74,36 @@ impl Client {
             .push("api");
 
         url.query_pairs_mut()
-            .append_pair("key_identity", &self.key.id.expose_secret());
-        url.query_pairs_mut()
-            .append_pair("key_credential", &self.key.cred.expose_secret());
+            .extend_pairs(&[
+                ("key_identity", self.key.id.expose_secret()),
+                ("key_credential", self.key.cred.expose_secret()),
+            ])
+            .finish();
 
         Ok(url)
+    }
+
+    pub async fn find_by_property(
+        &self,
+        property: Property,
+        value: &str,
+    ) -> anyhow::Result<reqwest::Response> {
+        let mut url = self.base_endpoint()?;
+
+        url.path_segments_mut()
+            .map_err(|_| anyhow::anyhow!("Failed to build Omeka API endpoint path."))?
+            .push("items");
+
+        url.query_pairs_mut()
+            .extend_pairs(&[
+                ("property[0][property]", property.as_str()),
+                ("property[0][type]", "eq"),
+                ("property[0][text]", value),
+            ])
+            .finish();
+
+        let response = self.client.get(url).send().await?;
+
+        Ok(response)
     }
 }
