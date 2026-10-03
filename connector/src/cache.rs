@@ -15,12 +15,6 @@ static URL_CACHE: LazyLock<Mutex<LruCache<UrlKey, String>>> =
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum UrlKey {
-    ItemById {
-        id: omeka::AceId,
-    },
-    ItemBySlug {
-        slug: omeka::AceSlug,
-    },
     MediaById {
         id: omeka::AceId,
         filename: omeka::AceFilename,
@@ -29,15 +23,6 @@ pub enum UrlKey {
         slug: omeka::AceSlug,
         filename: omeka::AceFilename,
     },
-}
-
-impl From<ItemKey> for UrlKey {
-    fn from(key: ItemKey) -> Self {
-        match key {
-            ItemKey::ById(id) => Self::ItemById { id },
-            ItemKey::BySlug(slug) => Self::ItemBySlug { slug },
-        }
-    }
 }
 
 impl From<MediaKey> for UrlKey {
