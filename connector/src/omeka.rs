@@ -67,6 +67,10 @@ impl Client {
     fn base_endpoint(&self) -> anyhow::Result<reqwest::Url> {
         let mut url = reqwest::Url::parse(&self.base_url)?;
 
+        url.path_segments_mut()
+            .map_err(|_| anyhow::anyhow!("Failed to build Omeka API endpoint path."))?
+            .push("api");
+
         url.query_pairs_mut()
             .append_pair("key_identity", &self.key.id.expose_secret());
         url.query_pairs_mut()
