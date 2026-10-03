@@ -8,7 +8,7 @@ use lru::LruCache;
 use crate::omeka;
 
 static URL_CACHE: LazyLock<Mutex<LruCache<UrlKey, String>>> =
-    LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(500).unwrap())));
+    LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(1000).unwrap())));
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum UrlKey {
