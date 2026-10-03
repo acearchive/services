@@ -1,6 +1,22 @@
 use serde::Deserialize;
 
-use super::omeka;
+use super::{cache, omeka};
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum MediaLocator {
+    Long {
+        slug: omeka::AceSlug,
+        filename: omeka::AceFilename,
+    },
+    Short {
+        id: omeka::AceId,
+        filename: omeka::AceFilename,
+    },
+    Raw {
+        id: omeka::AceId,
+        filename: omeka::AceFilename,
+    },
+}
 
 #[derive(Debug, Clone)]
 pub enum ItemKey {
@@ -8,10 +24,14 @@ pub enum ItemKey {
     BySlug(omeka::AceSlug),
 }
 
-#[derive(Debug, Clone)]
-pub struct MediaKey {
-    pub item: ItemKey,
-    pub filename: omeka::AceFilename,
+impl From<MediaLocator> for ItemKey {
+    fn from(locator: MediaLocator) -> Self {
+        match locator {
+            MediaLocator::Long { slug, .. } => ItemKey::BySlug(slug),
+            MediaLocator::Short { id, .. } => ItemKey::ById(id),
+            MediaLocator::Raw { id, .. } => ItemKey::ById(id),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -153,9 +173,17 @@ impl Resolver {
         Ok(Some((canonical_item_key, internal_item_id)))
     }
 
-    pub async fn resolve_media(&self, key: MediaKey) -> anyhow::Result<Option<MediaLocation>> {
+    pub async fn resolve_media(&self, key: MediaLocator) -> anyhow::Result<Option<MediaLocation>> {
+        if let Some(cached_omeka_url) = cache::get_url(key.clone().into()) {
+            return Ok(Some(MediaLocation {
+                omeka_url: cached_omeka_url.clone(),
+                // We only cache canonical URLs.
+                canonical_url: cached_omeka_url,
+            }));
+        }
+
         let (canonical_item_key, internal_item_id) =
-            match self.resolve_canonical_item(key.item).await? {
+            match self.resolve_canonical_item(key.clone().into()).await? {
                 Some((canonical_item_key, internal_id)) => (canonical_item_key, internal_id),
                 None => return Ok(None),
             };

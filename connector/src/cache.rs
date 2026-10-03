@@ -7,7 +7,7 @@ use lru::LruCache;
 
 use super::{
     omeka,
-    resolver::{ItemKey, MediaKey},
+    resolver::{ItemKey, MediaLocator},
 };
 
 static URL_CACHE: LazyLock<Mutex<LruCache<UrlKey, String>>> =
@@ -15,28 +15,12 @@ static URL_CACHE: LazyLock<Mutex<LruCache<UrlKey, String>>> =
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum UrlKey {
-    MediaById {
-        id: omeka::AceId,
-        filename: omeka::AceFilename,
-    },
-    MediaBySlug {
-        slug: omeka::AceSlug,
-        filename: omeka::AceFilename,
-    },
+    Media(MediaLocator),
 }
 
-impl From<MediaKey> for UrlKey {
-    fn from(key: MediaKey) -> Self {
-        match key.item {
-            ItemKey::ById(id) => Self::MediaById {
-                id,
-                filename: key.filename,
-            },
-            ItemKey::BySlug(slug) => Self::MediaBySlug {
-                slug,
-                filename: key.filename,
-            },
-        }
+impl From<MediaLocator> for UrlKey {
+    fn from(key: MediaLocator) -> Self {
+        Self::Media(key)
     }
 }
 
