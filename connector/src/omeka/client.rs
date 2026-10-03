@@ -1,43 +1,8 @@
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::ExposeSecret;
 
-use super::property::Property;
+use super::creds::ApiKey;
+use super::property::{Property, ResourceType};
 use crate::config;
-
-#[derive(Debug)]
-pub struct ApiKeyId(SecretString);
-
-impl From<String> for ApiKeyId {
-    fn from(value: String) -> Self {
-        ApiKeyId(SecretString::from(value))
-    }
-}
-
-impl ExposeSecret<str> for ApiKeyId {
-    fn expose_secret(&self) -> &str {
-        self.0.expose_secret()
-    }
-}
-
-#[derive(Debug)]
-pub struct ApiKeyCred(SecretString);
-
-impl From<String> for ApiKeyCred {
-    fn from(value: String) -> Self {
-        ApiKeyCred(SecretString::from(value))
-    }
-}
-
-impl ExposeSecret<str> for ApiKeyCred {
-    fn expose_secret(&self) -> &str {
-        self.0.expose_secret()
-    }
-}
-
-#[derive(Debug)]
-pub struct ApiKey {
-    pub id: ApiKeyId,
-    pub cred: ApiKeyCred,
-}
 
 #[derive(Debug)]
 pub struct Client {
@@ -83,8 +48,9 @@ impl Client {
         Ok(url)
     }
 
-    pub async fn find_by_property(
+    pub async fn find(
         &self,
+        resource: ResourceType,
         property: Property,
         value: &str,
     ) -> anyhow::Result<reqwest::Response> {
@@ -92,7 +58,7 @@ impl Client {
 
         url.path_segments_mut()
             .map_err(|_| anyhow::anyhow!("Failed to build Omeka API endpoint path."))?
-            .push("items");
+            .push(resource.as_str());
 
         url.query_pairs_mut()
             .extend_pairs(&[

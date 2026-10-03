@@ -1,4 +1,6 @@
 mod client;
+mod creds;
 mod property;
 
-pub use client::{ApiKeyCred, ApiKeyId, Client};
+pub use client::Client;
+pub use creds::{ApiKeyCred, ApiKeyId};
