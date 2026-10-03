@@ -1,6 +1,10 @@
 #![forbid(unsafe_code)]
 
+use acearchive_data_connector::{init_config, init_logger};
+
 fn main() {
-    let _logger = init_logging().expect("failed to start logger");
+    init_config().expect("Failed to load config.");
+    let _logger = init_logger().expect("Failed to start logger.");
+
     log::info!("Server starting.");
 }
