@@ -16,6 +16,7 @@ use super::{
 
 pub fn new() -> Router {
     Router::new()
+        .route("/health", get(get_health))
         .route("/media/artifacts/{slug}/{filename}", get(get_media_long))
         .route("/media/a/{id}/{filename}", get(get_media_short))
         .route("/media/r/{id}/{filename}", get(get_media_raw))
@@ -66,6 +67,11 @@ async fn get_media(locator: MediaLocator) -> Result<impl IntoResponse, StatusCod
         },
         None => Err(StatusCode::NOT_FOUND),
     }
+}
+
+#[axum::debug_handler]
+async fn get_health() -> StatusCode {
+    StatusCode::OK
 }
 
 #[axum::debug_handler]
