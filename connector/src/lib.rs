@@ -5,6 +5,7 @@ mod config;
 mod logger;
 mod omeka;
 mod resolver;
+mod router;
 mod url;
 
 pub use config::init_config;

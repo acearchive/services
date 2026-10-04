@@ -27,7 +27,24 @@ impl MediaLocator {
         }
     }
 
-    pub fn to_canonical(self, item_key: ItemKey, filename: omeka::AceFilename) -> Self {
+    pub fn with_key(self, item_key: ItemKey) -> Self {
+        match self {
+            MediaLocator::Long { filename, .. } => MediaLocator::Long {
+                slug: item_key.unwrap_slug(),
+                filename,
+            },
+            MediaLocator::Short { filename, .. } => MediaLocator::Short {
+                id: item_key.unwrap_id(),
+                filename,
+            },
+            MediaLocator::Raw { filename, .. } => MediaLocator::Raw {
+                id: item_key.unwrap_id(),
+                filename,
+            },
+        }
+    }
+
+    pub fn with_key_and_filename(self, item_key: ItemKey, filename: omeka::AceFilename) -> Self {
         match self {
             MediaLocator::Long { .. } => MediaLocator::Long {
                 slug: item_key.unwrap_slug(),
@@ -78,9 +95,25 @@ impl From<MediaLocator> for ItemKey {
 }
 
 #[derive(Debug, Clone)]
+pub enum CanonicalUrl {
+    ShouldRedirect(reqwest::Url),
+    AlreadyCanonical(reqwest::Url),
+}
+
+impl CanonicalUrl {
+    pub fn url(&self) -> &reqwest::Url {
+        match self {
+            CanonicalUrl::ShouldRedirect(url) => url,
+            CanonicalUrl::AlreadyCanonical(url) => url,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct MediaLocation {
     pub omeka_url: reqwest::Url,
-    pub canonical_url: reqwest::Url,
+    // If `None`, we're already at the canonical URL. If `Some`, we need to redirect.
+    pub canonical_url: CanonicalUrl,
 }
 
 #[derive(Debug)]
@@ -99,7 +132,7 @@ impl Resolver {
     async fn resolve_canonical_item(
         &self,
         key: ItemKey,
-    ) -> anyhow::Result<Option<(ItemKey, omeka::InternalId)>> {
+    ) -> anyhow::Result<Option<(omeka::InternalId, Option<ItemKey>)>> {
         #[derive(Debug, Deserialize)]
         struct PropertyValue<T> {
             #[serde(rename = "@value")]
@@ -118,7 +151,7 @@ impl Resolver {
             ace_slug: Vec<PropertyValue<omeka::AceSlug>>,
         }
 
-        let (canonical_item_key, internal_item_id) = match key {
+        let (internal_item_id, canonical_item_key) = match key {
             ItemKey::ById(id) => {
                 let response = self
                     .client
@@ -146,7 +179,7 @@ impl Resolver {
                     }
                 };
 
-                (ItemKey::ById(id), internal_id)
+                (internal_id, None)
             }
             ItemKey::BySlug(slug) => {
                 let response = self
@@ -168,7 +201,7 @@ impl Resolver {
                 }
 
                 match item_responses.first() {
-                    Some(item_response) => (ItemKey::BySlug(slug), item_response.internal_id),
+                    Some(item_response) => (item_response.internal_id, None),
                     None => {
                         let response = self
                             .client
@@ -210,15 +243,15 @@ impl Resolver {
                         };
 
                         (
-                            ItemKey::BySlug(canonical_ace_slug),
                             item_response.internal_id,
+                            Some(ItemKey::BySlug(canonical_ace_slug)),
                         )
                     }
                 }
             }
         };
 
-        Ok(Some((canonical_item_key, internal_item_id)))
+        Ok(Some((internal_item_id, canonical_item_key)))
     }
 
     // Given the ID or slug of an item in the collection, a filename, and whether this is a long
@@ -240,15 +273,11 @@ impl Resolver {
             ace_filename: Vec<PropertyValue<omeka::AceFilename>>,
         }
 
-        if let Some(cached_omeka_url) = cache::get_url(key.clone().into()) {
-            return Ok(Some(MediaLocation {
-                omeka_url: cached_omeka_url.clone(),
-                // We only cache canonical URLs.
-                canonical_url: cached_omeka_url,
-            }));
+        if let Some(cached_media_location) = cache::get_media_location(&key) {
+            return Ok(Some(cached_media_location));
         }
 
-        let (canonical_item_key, internal_item_id) =
+        let (internal_item_id, canonical_item_key) =
             match self.resolve_canonical_item(key.clone().into()).await? {
                 Some(pair) => pair,
                 None => return Ok(None),
@@ -277,10 +306,12 @@ impl Resolver {
         let (original_url, canonical_url) = match media_responses.first() {
             Some(media_response) => (
                 reqwest::Url::parse(&media_response.original_url)?,
-                url::format(
-                    key.clone()
-                        .to_canonical(canonical_item_key, key.filename().to_owned()),
-                )?,
+                match canonical_item_key {
+                    Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(url::format(
+                        key.clone().with_key(canonical_item_key),
+                    )?),
+                    None => CanonicalUrl::AlreadyCanonical(url::format(key.clone())?),
+                },
             ),
             None => {
                 let response = self
@@ -325,18 +356,27 @@ impl Resolver {
 
                 (
                     reqwest::Url::parse(&media_response.original_url)?,
-                    url::format(
-                        key.clone()
-                            .to_canonical(canonical_item_key, canonical_filename),
-                    )?,
+                    match canonical_item_key {
+                        Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(url::format(
+                            key.clone()
+                                .with_key_and_filename(canonical_item_key, canonical_filename),
+                        )?),
+                        None => CanonicalUrl::ShouldRedirect(url::format(
+                            key.clone()
+                                .with_key_and_filename(key.clone().into(), canonical_filename),
+                        )?),
+                    },
                 )
             }
         };
 
-        // Remember that the cache is keyed by the original ID, slug, and filename rather than the
-        // canonical ones.
-        cache::put_url(cache::UrlKey::Media(key), &canonical_url);
+        let media_location = MediaLocation {
+            omeka_url: original_url,
+            canonical_url,
+        };
 
-        todo!()
+        cache::put_media_location(key, media_location.clone());
+
+        Ok(Some(media_location))
     }
 }

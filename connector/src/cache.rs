@@ -5,42 +5,26 @@ use std::{
 
 use lru::LruCache;
 
-use super::{
-    omeka,
-    resolver::{ItemKey, MediaLocator},
-};
+use super::resolver::{MediaLocation, MediaLocator};
 
-static URL_CACHE: LazyLock<Mutex<LruCache<UrlKey, String>>> =
+static MEDIA_LOCATION_CACHE: LazyLock<Mutex<LruCache<MediaLocator, MediaLocation>>> =
     LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(1000).unwrap())));
 
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub enum UrlKey {
-    Media(MediaLocator),
-}
-
-impl From<MediaLocator> for UrlKey {
-    fn from(key: MediaLocator) -> Self {
-        Self::Media(key)
-    }
-}
-
-pub fn put_url(key: UrlKey, url: &reqwest::Url) {
-    let cache = LazyLock::force(&URL_CACHE);
-
-    // We serialize the URL to a string to save memory, as `reqwest::Url` seems to internally store
-    // both the serialized URL and the parsed components.
-    cache
-        .lock()
-        .expect("Media cache lock poisoned.")
-        .put(key, url.to_string());
-}
-
-pub fn get_url(key: UrlKey) -> Option<reqwest::Url> {
-    let cache = LazyLock::force(&URL_CACHE);
+pub fn put_media_location(key: MediaLocator, value: MediaLocation) {
+    let cache = LazyLock::force(&MEDIA_LOCATION_CACHE);
 
     cache
         .lock()
         .expect("Media cache lock poisoned.")
-        .get(&key)
-        .map(|raw| reqwest::Url::parse(raw).expect("Failed to parse cached URL."))
+        .put(key, value);
+}
+
+pub fn get_media_location(key: &MediaLocator) -> Option<MediaLocation> {
+    let cache = LazyLock::force(&MEDIA_LOCATION_CACHE);
+
+    cache
+        .lock()
+        .expect("Media cache lock poisoned.")
+        .get(key)
+        .cloned()
 }

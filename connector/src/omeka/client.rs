@@ -37,15 +37,15 @@ pub struct Client {
 }
 
 impl Client {
-    fn new(base_url: reqwest::Url, key: ApiKey) -> Self {
+    fn new(client: reqwest::Client, base_url: reqwest::Url, key: ApiKey) -> Self {
         Client {
             base_url,
             key,
-            client: reqwest::Client::new(),
+            client,
         }
     }
 
-    pub fn from_config() -> anyhow::Result<Self> {
+    pub fn from_config(client: reqwest::Client) -> anyhow::Result<Self> {
         let base_url = config::omeka_url()?;
 
         let key = ApiKey {
@@ -53,7 +53,7 @@ impl Client {
             cred: config::omeka_key_cred()?,
         };
 
-        Ok(Client::new(base_url, key))
+        Ok(Client::new(client, base_url, key))
     }
 
     fn base_endpoint(&self) -> anyhow::Result<reqwest::Url> {
