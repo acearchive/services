@@ -8,7 +8,7 @@ async fn main() {
     let _logger = init_logger().expect("Failed to start logger.");
 
     let port = config::port().expect("Failed to get port number from config.");
-    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port))
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
         .unwrap();
 
