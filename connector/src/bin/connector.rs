@@ -12,9 +12,9 @@ async fn main() {
         .await
         .unwrap();
 
+    log::info!("Server starting.");
+
     axum::serve(listener, router())
         .await
         .expect("Failed to start server.");
-
-    log::info!("Server starting.");
 }
