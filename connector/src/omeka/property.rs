@@ -41,7 +41,7 @@ impl fmt::Display for AceSlug {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Deserialize)]
 pub struct AceFilename(String);
 
 impl AsRef<str> for AceFilename {
