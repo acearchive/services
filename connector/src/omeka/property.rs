@@ -88,10 +88,10 @@ impl fmt::Display for ResourceType {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Property {
     AceId,
-    AceSlug,
-    AceSlugAlias,
-    AceFilename,
-    AceFilenameAlias,
+    Slug,
+    SlugAlias,
+    Filename,
+    FilenameAlias,
 }
 
 impl Property {
@@ -101,10 +101,10 @@ impl Property {
         // unless we change them.
         match self {
             Property::AceId => "ace:id",
-            Property::AceSlug => "ace:slug",
-            Property::AceSlugAlias => "ace:slugAlias",
-            Property::AceFilename => "ace:filename",
-            Property::AceFilenameAlias => "ace:filenameAlias",
+            Property::Slug => "ace:slug",
+            Property::SlugAlias => "ace:slugAlias",
+            Property::Filename => "ace:filename",
+            Property::FilenameAlias => "ace:filenameAlias",
         }
     }
 }

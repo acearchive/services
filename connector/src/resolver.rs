@@ -145,7 +145,7 @@ impl Resolver {
                     .client
                     .find(
                         omeka::ResourceType::Item,
-                        omeka::FindQuery::new().property(omeka::Property::AceId, id.to_string()),
+                        omeka::FindQuery::new().property(omeka::Property::AceId, &id),
                     )
                     .await?;
 
@@ -174,7 +174,7 @@ impl Resolver {
                     .client
                     .find(
                         omeka::ResourceType::Item,
-                        omeka::FindQuery::new().property(omeka::Property::AceSlug, &slug),
+                        omeka::FindQuery::new().property(omeka::Property::Slug, &slug),
                     )
                     .await?;
 
@@ -183,8 +183,8 @@ impl Resolver {
                 if item_responses.len() > 1 {
                     log::warn!(
                         "Multiple items found with `{}` property value `{}`. Using the first one.",
-                        omeka::Property::AceSlug,
-                        &slug,
+                        omeka::Property::Slug,
+                        slug,
                     );
                 }
 
@@ -195,8 +195,7 @@ impl Resolver {
                             .client
                             .find(
                                 omeka::ResourceType::Item,
-                                omeka::FindQuery::new()
-                                    .property(omeka::Property::AceSlugAlias, &slug),
+                                omeka::FindQuery::new().property(omeka::Property::SlugAlias, &slug),
                             )
                             .await?;
 
@@ -205,8 +204,8 @@ impl Resolver {
                         if item_responses.len() > 1 {
                             log::warn!(
                                 "Multiple items found with `{}` property value `{}`. Using the first one.",
-                                omeka::Property::AceSlugAlias,
-                                &slug,
+                                omeka::Property::SlugAlias,
+                                slug,
                             );
                         }
 
@@ -223,7 +222,7 @@ impl Resolver {
                                 log::warn!(
                                     "Item with internal ID `{}` has no `{}` property.",
                                     item_response.internal_id,
-                                    omeka::Property::AceSlug,
+                                    omeka::Property::Slug,
                                 );
 
                                 return Ok(None);
@@ -276,7 +275,7 @@ impl Resolver {
             .find(
                 omeka::ResourceType::Media,
                 omeka::FindQuery::new()
-                    .property(omeka::Property::AceFilename, key.filename())
+                    .property(omeka::Property::Filename, key.filename())
                     .filter(omeka::ResourceFilter::ItemId(internal_item_id)),
             )
             .await?;
@@ -286,7 +285,7 @@ impl Resolver {
         if media_responses.len() > 1 {
             log::warn!(
                 "Multiple items found with `{}` property value `{}`. Using the first one.",
-                omeka::Property::AceFilename,
+                omeka::Property::Filename,
                 key.filename(),
             );
         }
@@ -307,7 +306,7 @@ impl Resolver {
                     .find(
                         omeka::ResourceType::Media,
                         omeka::FindQuery::new()
-                            .property(omeka::Property::AceFilenameAlias, key.filename())
+                            .property(omeka::Property::FilenameAlias, key.filename())
                             .filter(omeka::ResourceFilter::ItemId(internal_item_id)),
                     )
                     .await?;
@@ -317,7 +316,7 @@ impl Resolver {
                 if media_responses.len() > 1 {
                     log::warn!(
                         "Multiple items found with `{}` property value `{}`. Using the first one.",
-                        omeka::Property::AceFilenameAlias,
+                        omeka::Property::FilenameAlias,
                         key.filename(),
                     );
                 }
@@ -335,7 +334,7 @@ impl Resolver {
                         log::warn!(
                             "Media with URL `{}` has no `{}` property.",
                             url::format(key)?,
-                            omeka::Property::AceFilename,
+                            omeka::Property::Filename,
                         );
 
                         return Ok(None);

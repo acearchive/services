@@ -91,7 +91,7 @@ impl Client {
                 query_pairs_mut.extend_pairs(&[
                     ("property[0][property]", property.as_str()),
                     ("property[0][type]", "eq"),
-                    ("property[0][text]", &value),
+                    ("property[0][text]", value),
                 ]);
             }
 
