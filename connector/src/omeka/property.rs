@@ -59,7 +59,7 @@ impl fmt::Display for AceFilename {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ResourceType {
     Item,
-    ItemSet,
+    // ItemSet,
     Media,
 }
 
@@ -67,7 +67,7 @@ impl ResourceType {
     pub fn as_str(&self) -> &'static str {
         match self {
             ResourceType::Item => "items",
-            ResourceType::ItemSet => "item_sets",
+            // ResourceType::ItemSet => "item_sets",
             ResourceType::Media => "media",
         }
     }
@@ -87,7 +87,6 @@ impl fmt::Display for ResourceType {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Property {
-    InternalId,
     AceId,
     AceSlug,
     AceSlugAlias,
@@ -101,7 +100,6 @@ impl Property {
         // JSON-LD `@context` field to look them up, but this is fine for now. They won't change
         // unless we change them.
         match self {
-            Property::InternalId => "o:id",
             Property::AceId => "ace:id",
             Property::AceSlug => "ace:slug",
             Property::AceSlugAlias => "ace:slugAlias",

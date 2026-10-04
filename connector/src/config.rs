@@ -39,6 +39,10 @@ pub fn files_url() -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&get_config("FILES_URL")?)?)
 }
 
+pub fn port() -> anyhow::Result<u16> {
+    Ok(get_config("PORT")?.parse::<u16>()?)
+}
+
 pub fn omeka_key_id() -> anyhow::Result<omeka::ApiKeyId> {
     Ok(get_config("OMEKA_KEY_ID")?.into())
 }

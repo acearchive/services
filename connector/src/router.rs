@@ -56,7 +56,7 @@ async fn get_media(locator: MediaLocator) -> Result<impl IntoResponse, StatusCod
             CanonicalUrl::ShouldRedirect(url) => {
                 Ok(Redirect::permanent(url.as_str()).into_response())
             }
-            CanonicalUrl::AlreadyCanonical(_) => Ok(proxy_response(
+            CanonicalUrl::AlreadyCanonical => Ok(proxy_response(
                 client
                     .get(location.omeka_url)
                     .send()

@@ -97,16 +97,7 @@ impl From<MediaLocator> for ItemKey {
 #[derive(Debug, Clone)]
 pub enum CanonicalUrl {
     ShouldRedirect(reqwest::Url),
-    AlreadyCanonical(reqwest::Url),
-}
-
-impl CanonicalUrl {
-    pub fn url(&self) -> &reqwest::Url {
-        match self {
-            CanonicalUrl::ShouldRedirect(url) => url,
-            CanonicalUrl::AlreadyCanonical(url) => url,
-        }
-    }
+    AlreadyCanonical,
 }
 
 #[derive(Debug, Clone)]
@@ -143,9 +134,6 @@ impl Resolver {
         struct ItemResponse {
             #[serde(rename = "o:id")]
             internal_id: omeka::InternalId,
-
-            #[serde(rename = "ace:id")]
-            ace_id: Vec<PropertyValue<omeka::AceId>>,
 
             #[serde(rename = "ace:slug")]
             ace_slug: Vec<PropertyValue<omeka::AceSlug>>,
@@ -310,7 +298,7 @@ impl Resolver {
                     Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(url::format(
                         key.clone().with_key(canonical_item_key),
                     )?),
-                    None => CanonicalUrl::AlreadyCanonical(url::format(key.clone())?),
+                    None => CanonicalUrl::AlreadyCanonical,
                 },
             ),
             None => {
