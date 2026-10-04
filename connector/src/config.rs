@@ -1,4 +1,4 @@
-use std::{env, sync::OnceLock};
+use std::{env, path::PathBuf, sync::OnceLock};
 
 use crate::omeka;
 
@@ -6,6 +6,7 @@ struct Config {
     omeka_url: reqwest::Url,
     files_url: reqwest::Url,
     port: u16,
+    data_dir: PathBuf,
     omeka_key_id: omeka::ApiKeyId,
     omeka_key_cred: omeka::ApiKeyCred,
 }
@@ -19,6 +20,7 @@ pub fn init_config() -> anyhow::Result<()> {
         omeka_url: reqwest::Url::parse(&env::var("OMEKA_URL")?)?,
         files_url: reqwest::Url::parse(&env::var("FILES_URL")?)?,
         port: env::var("PORT")?.parse::<u16>()?,
+        data_dir: env::var("DATA_DIR")?.into(),
         omeka_key_id: env::var("OMEKA_KEY_ID")?.into(),
         omeka_key_cred: env::var("OMEKA_KEY_CRED")?.into(),
     };
@@ -51,6 +53,14 @@ pub fn port() -> anyhow::Result<u16> {
         .get()
         .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
         .port)
+}
+
+pub fn data_dir() -> anyhow::Result<PathBuf> {
+    Ok(CONFIG
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
+        .data_dir
+        .clone())
 }
 
 pub fn omeka_key_id() -> anyhow::Result<omeka::ApiKeyId> {
