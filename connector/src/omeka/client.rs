@@ -103,7 +103,15 @@ impl Client {
             query_pairs_mut.finish();
         }
 
-        let response = self.client.get(url).send().await?;
+        let response = self.client.get(url.clone()).send().await?;
+
+        if !response.status().is_success() {
+            log::error!(
+                "Omeka request failed with {}: {}",
+                response.status(),
+                url.as_str()
+            );
+        }
 
         Ok(response)
     }

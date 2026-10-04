@@ -4,4 +4,6 @@ mod property;
 
 pub use client::{Client, FindQuery};
 pub use creds::{ApiKeyCred, ApiKeyId};
-pub use property::{AceFilename, AceId, AceSlug, InternalId, Property, ResourceType};
+pub use property::{
+    AceFilename, AceId, AceSlug, InternalId, Property, ResourceFilter, ResourceType,
+};

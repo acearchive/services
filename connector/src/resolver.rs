@@ -18,6 +18,16 @@ pub enum MediaLocator {
     },
 }
 
+impl MediaLocator {
+    pub fn filename(&self) -> &omeka::AceFilename {
+        match self {
+            MediaLocator::Long { filename, .. } => filename,
+            MediaLocator::Short { filename, .. } => filename,
+            MediaLocator::Raw { filename, .. } => filename,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ItemKey {
     ById(omeka::AceId),
@@ -82,18 +92,7 @@ impl Resolver {
                     )
                     .await?;
 
-                if response.status() == reqwest::StatusCode::NOT_FOUND {
-                    return Ok(None);
-                }
-
                 let item_responses = response.json::<Vec<ItemResponse>>().await?;
-
-                let internal_id = match item_responses.first() {
-                    Some(item_response) => item_response.internal_id,
-                    None => {
-                        return Ok(None);
-                    }
-                };
 
                 if item_responses.len() > 1 {
                     log::warn!(
@@ -102,6 +101,14 @@ impl Resolver {
                         id,
                     );
                 }
+
+                // If there is no matching item, we get an empty array, not a 404 Not Found.
+                let internal_id = match item_responses.first() {
+                    Some(item_response) => item_response.internal_id,
+                    None => {
+                        return Ok(None);
+                    }
+                };
 
                 (ItemKey::ById(id), internal_id)
             }
@@ -114,58 +121,63 @@ impl Resolver {
                     )
                     .await?;
 
-                if response.status() == reqwest::StatusCode::NOT_FOUND {
-                    let response = self
-                        .client
-                        .find(
-                            omeka::ResourceType::Item,
-                            omeka::FindQuery::new().property(omeka::Property::AceSlugAlias, &slug),
-                        )
-                        .await?;
+                let item_responses = response.json::<Vec<ItemResponse>>().await?;
 
-                    if response.status() == reqwest::StatusCode::NOT_FOUND {
-                        return Ok(None);
-                    }
+                if item_responses.len() > 1 {
+                    log::warn!(
+                        "Multiple items found with `{}` property value `{}`. Using the first one.",
+                        omeka::Property::AceSlug,
+                        &slug,
+                    );
+                }
 
-                    let item_responses = response.json::<Vec<ItemResponse>>().await?;
+                match item_responses.first() {
+                    Some(item_response) => (ItemKey::BySlug(slug), item_response.internal_id),
+                    None => {
+                        let response = self
+                            .client
+                            .find(
+                                omeka::ResourceType::Item,
+                                omeka::FindQuery::new()
+                                    .property(omeka::Property::AceSlugAlias, &slug),
+                            )
+                            .await?;
 
-                    let item_response = match item_responses.first() {
-                        Some(item_response) => item_response,
-                        None => {
-                            return Ok(None);
-                        }
-                    };
+                        let item_responses = response.json::<Vec<ItemResponse>>().await?;
 
-                    if item_responses.len() > 1 {
-                        log::warn!(
-                            "Multiple items found with `{}` property value `{}`. Using the first one.",
-                            omeka::Property::AceSlugAlias,
-                            &slug,
-                        );
-                    }
-
-                    let canonical_ace_slug = match item_response.ace_slug.first() {
-                        Some(slug) => slug.value.clone(),
-                        None => {
+                        if item_responses.len() > 1 {
                             log::warn!(
-                                "Item with internal ID `{}` has no `{}` property.",
-                                item_response.internal_id,
-                                omeka::Property::AceSlug,
+                                "Multiple items found with `{}` property value `{}`. Using the first one.",
+                                omeka::Property::AceSlugAlias,
+                                &slug,
                             );
-
-                            return Ok(None);
                         }
-                    };
 
-                    (
-                        ItemKey::BySlug(canonical_ace_slug),
-                        item_response.internal_id,
-                    )
-                } else {
-                    (
-                        ItemKey::BySlug(slug),
-                        response.json::<ItemResponse>().await?.internal_id,
-                    )
+                        let item_response = match item_responses.first() {
+                            Some(item_response) => item_response,
+                            None => {
+                                return Ok(None);
+                            }
+                        };
+
+                        let canonical_ace_slug = match item_response.ace_slug.first() {
+                            Some(slug) => slug.value.clone(),
+                            None => {
+                                log::warn!(
+                                    "Item with internal ID `{}` has no `{}` property.",
+                                    item_response.internal_id,
+                                    omeka::Property::AceSlug,
+                                );
+
+                                return Ok(None);
+                            }
+                        };
+
+                        (
+                            ItemKey::BySlug(canonical_ace_slug),
+                            item_response.internal_id,
+                        )
+                    }
                 }
             }
         };
@@ -184,9 +196,19 @@ impl Resolver {
 
         let (canonical_item_key, internal_item_id) =
             match self.resolve_canonical_item(key.clone().into()).await? {
-                Some((canonical_item_key, internal_id)) => (canonical_item_key, internal_id),
+                Some(pair) => pair,
                 None => return Ok(None),
             };
+
+        let response = self
+            .client
+            .find(
+                omeka::ResourceType::Item,
+                omeka::FindQuery::new()
+                    .property(omeka::Property::AceFilename, key.filename())
+                    .filter(omeka::ResourceFilter::ItemId(internal_item_id)),
+            )
+            .await?;
 
         todo!()
     }
