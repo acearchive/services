@@ -1,52 +1,70 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::{env, sync::OnceLock};
 
 use crate::omeka;
 
-static CONFIG: OnceLock<HashMap<String, String>> = OnceLock::new();
+struct Config {
+    omeka_url: reqwest::Url,
+    files_url: reqwest::Url,
+    port: u16,
+    omeka_key_id: omeka::ApiKeyId,
+    omeka_key_cred: omeka::ApiKeyCred,
+}
+
+static CONFIG: OnceLock<Config> = OnceLock::new();
 
 pub fn init_config() -> anyhow::Result<()> {
-    let env = dotenvy::dotenv_iter()?
-        .filter_map(|item| match item {
-            Ok((key, value)) => Some((key, value)),
-            Err(err) => {
-                log::error!("Failed to parse dotenv file: {}", err);
-                None
-            }
-        })
-        .collect::<HashMap<String, String>>();
+    dotenvy::dotenv().ok();
+
+    let config = Config {
+        omeka_url: reqwest::Url::parse(&env::var("OMEKA_URL")?)?,
+        files_url: reqwest::Url::parse(&env::var("FILES_URL")?)?,
+        port: env::var("PORT")?.parse::<u16>()?,
+        omeka_key_id: env::var("OMEKA_KEY_ID")?.into(),
+        omeka_key_cred: env::var("OMEKA_KEY_CRED")?.into(),
+    };
 
     CONFIG
-        .set(env)
+        .set(config)
         .map_err(|_| anyhow::anyhow!("Config already initialized."))?;
 
     Ok(())
 }
 
-fn get_config(key: &str) -> anyhow::Result<String> {
-    CONFIG
+pub fn omeka_url() -> anyhow::Result<reqwest::Url> {
+    Ok(CONFIG
         .get()
         .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .get(key)
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Not set in config: {}", key))
-}
-
-pub fn omeka_url() -> anyhow::Result<reqwest::Url> {
-    Ok(reqwest::Url::parse(&get_config("OMEKA_URL")?)?)
+        .omeka_url
+        .clone())
 }
 
 pub fn files_url() -> anyhow::Result<reqwest::Url> {
-    Ok(reqwest::Url::parse(&get_config("FILES_URL")?)?)
+    Ok(CONFIG
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
+        .files_url
+        .clone())
 }
 
 pub fn port() -> anyhow::Result<u16> {
-    Ok(get_config("PORT")?.parse::<u16>()?)
+    Ok(CONFIG
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
+        .port)
 }
 
 pub fn omeka_key_id() -> anyhow::Result<omeka::ApiKeyId> {
-    Ok(get_config("OMEKA_KEY_ID")?.into())
+    Ok(CONFIG
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
+        .omeka_key_id
+        .clone())
 }
 
 pub fn omeka_key_cred() -> anyhow::Result<omeka::ApiKeyCred> {
-    Ok(get_config("OMEKA_KEY_CRED")?.into())
+    Ok(CONFIG
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
+        .omeka_key_cred
+        .clone())
 }

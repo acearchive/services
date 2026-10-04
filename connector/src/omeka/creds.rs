@@ -1,6 +1,6 @@
 use secrecy::{ExposeSecret, SecretString};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ApiKeyId(SecretString);
 
 impl From<String> for ApiKeyId {
@@ -15,7 +15,7 @@ impl ExposeSecret<str> for ApiKeyId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ApiKeyCred(SecretString);
 
 impl From<String> for ApiKeyCred {
