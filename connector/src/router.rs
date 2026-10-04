@@ -16,9 +16,9 @@ use super::{
 
 pub fn new() -> Router {
     Router::new()
-        .route("/media/artifacts/:slug/:filename", get(get_media_long))
-        .route("/media/a/:id/:filename", get(get_media_short))
-        .route("/media/r/:id/:filename", get(get_media_raw))
+        .route("/media/artifacts/{slug}/{filename}", get(get_media_long))
+        .route("/media/a/{id}/{filename}", get(get_media_short))
+        .route("/media/r/{id}/{filename}", get(get_media_raw))
 }
 
 fn map_error<E>(code: StatusCode) -> impl FnOnce(E) -> StatusCode
