@@ -91,7 +91,7 @@ impl fmt::Display for AceFilename {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ResourceType {
     Item,
-    // ItemSet,
+    ItemSet,
     Media,
 }
 
@@ -99,7 +99,7 @@ impl ResourceType {
     pub fn as_str(&self) -> &'static str {
         match self {
             ResourceType::Item => "items",
-            // ResourceType::ItemSet => "item_sets",
+            ResourceType::ItemSet => "item_sets",
             ResourceType::Media => "media",
         }
     }

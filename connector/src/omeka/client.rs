@@ -1,4 +1,4 @@
-use super::property::{InternalId, Property, ResourceFilter, ResourceType};
+use super::property::{Property, ResourceFilter, ResourceType};
 use crate::config;
 
 #[derive(Debug)]
@@ -154,36 +154,5 @@ impl Client {
         let next_page = NextPage::from_headers(response.headers())?;
 
         Ok((response, next_page))
-    }
-
-    pub async fn get_media(&self, media_id: InternalId) -> anyhow::Result<reqwest::Response> {
-        self.client
-            .get(self.base_url.join(&format!("/api/media/{}", media_id))?)
-            .send()
-            .await
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "Failed to get media with internal id `{}`: {}",
-                    media_id,
-                    error
-                )
-            })
-    }
-
-    pub async fn get_item_set(&self, item_set_id: InternalId) -> anyhow::Result<reqwest::Response> {
-        self.client
-            .get(
-                self.base_url
-                    .join(&format!("/api/item_sets/{}", item_set_id))?,
-            )
-            .send()
-            .await
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "Failed to get item set with internal id `{}`: {}",
-                    item_set_id,
-                    error
-                )
-            })
     }
 }

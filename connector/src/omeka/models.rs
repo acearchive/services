@@ -76,6 +76,9 @@ pub struct ItemResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct ItemSetResponse {
+    #[serde(rename = "o:id")]
+    pub internal_id: InternalId,
+
     #[serde(rename = "dcterms:title")]
     pub title: Vec<LiteralPropertyValue<String>>,
 
@@ -85,6 +88,9 @@ pub struct ItemSetResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct MediaResponse {
+    #[serde(rename = "o:id")]
+    pub internal_id: InternalId,
+
     #[serde(rename = "o:original_url")]
     pub original_url: String,
 
