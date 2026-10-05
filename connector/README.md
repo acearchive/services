@@ -1,6 +1,7 @@
 # Omeka Data Connector
 
-This service is deployed alongside the Omeka S installation and sits between
+This service is deployed alongside the [Omeka S
+installation](https://github.com/acearchive/omeka-deployment) and sits between
 the frontend edge functions and the Omeka S API. It has a few responsibilities:
 
 1. Serve media files from the collection.
