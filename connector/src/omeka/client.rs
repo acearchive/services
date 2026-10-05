@@ -46,12 +46,11 @@ impl NextPage {
             .and_then(|value| value.to_str().ok())
             .map(parse_link_header::parse)
             .transpose()?
-            .map(|header| {
+            .and_then(|header| {
                 header
                     .get(&Some(String::from("next")))
                     .map(|next| next.raw_uri.clone())
             })
-            .flatten()
             .map(|url| reqwest::Url::parse(&url))
             .transpose()?;
 
@@ -74,22 +73,12 @@ impl Client {
         Ok(Client::new(client, config::omeka_url()?))
     }
 
-    fn base_endpoint(&self) -> anyhow::Result<reqwest::Url> {
-        let mut url = self.base_url.clone();
-
-        url.path_segments_mut()
-            .map_err(|_| anyhow::anyhow!("Failed to build Omeka API endpoint path."))?
-            .push("api");
-
-        Ok(url)
-    }
-
     pub async fn find(
         &self,
         resource: ResourceType,
         query: &FindQuery,
     ) -> anyhow::Result<(reqwest::Response, Option<NextPage>)> {
-        let mut url = self.base_endpoint()?;
+        let mut url = self.base_url.join("/api")?;
 
         url.path_segments_mut()
             .map_err(|_| anyhow::anyhow!("Failed to build Omeka API endpoint path."))?
@@ -169,13 +158,30 @@ impl Client {
 
     pub async fn get_media(&self, media_id: InternalId) -> anyhow::Result<reqwest::Response> {
         self.client
-            .get(self.base_endpoint()?.join(&format!("media/{}", media_id))?)
+            .get(self.base_url.join(&format!("/api/media/{}", media_id))?)
             .send()
             .await
             .map_err(|error| {
                 anyhow::anyhow!(
                     "Failed to get media with internal id `{}`: {}",
                     media_id,
+                    error
+                )
+            })
+    }
+
+    pub async fn get_item_set(&self, item_set_id: InternalId) -> anyhow::Result<reqwest::Response> {
+        self.client
+            .get(
+                self.base_url
+                    .join(&format!("/api/item_sets/{}", item_set_id))?,
+            )
+            .send()
+            .await
+            .map_err(|error| {
+                anyhow::anyhow!(
+                    "Failed to get item set with internal id `{}`: {}",
+                    item_set_id,
                     error
                 )
             })

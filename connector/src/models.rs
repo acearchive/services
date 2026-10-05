@@ -1,8 +1,8 @@
 use serde::Serialize;
 
-use crate::omeka::{ExternalId, InternalId};
+use crate::omeka::InternalId;
 
-use super::omeka::{AceFilename, AceId, AceSlug};
+use super::omeka::{AceFilename, AceId, AceSlug, ExternalId};
 
 #[derive(Debug, Serialize)]
 pub struct File {

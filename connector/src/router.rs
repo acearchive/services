@@ -10,7 +10,7 @@ use axum::{
 };
 
 use super::{
-    model::Item,
+    models::Item,
     omeka,
     resolver::{CanonicalUrl, MediaLocator, Resolver},
 };

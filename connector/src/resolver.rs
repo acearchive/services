@@ -1,9 +1,7 @@
-use serde::Deserialize;
-
 use super::{
-    cache,
-    model::{Collection, File, Identity, Item, Link, Person},
-    omeka, url,
+    cache, config,
+    models::{Collection, File, Identity, Item, Link, Person},
+    omeka,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -64,6 +62,30 @@ impl MediaLocator {
             },
         }
     }
+
+    pub fn to_url(&self) -> anyhow::Result<reqwest::Url> {
+        let mut url = config::files_url()?;
+
+        {
+            let mut path_segments = url
+                .path_segments_mut()
+                .map_err(|_| anyhow::anyhow!("Failed to get path segments from files URL."))?;
+
+            match self {
+                MediaLocator::Long { slug, filename } => {
+                    path_segments.extend(["artifacts", slug.as_ref(), filename.as_ref()]);
+                }
+                MediaLocator::Short { id, filename } => {
+                    path_segments.extend(["a", id.as_ref(), filename.as_ref()]);
+                }
+                MediaLocator::Raw { id, filename } => {
+                    path_segments.extend(["r", id.as_ref(), filename.as_ref()]);
+                }
+            }
+        }
+
+        Ok(url)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +133,77 @@ pub struct MediaLocation {
     pub canonical_url: CanonicalUrl,
 }
 
+fn require_one<T>(
+    property: omeka::Property,
+    values: Vec<omeka::LiteralPropertyValue<T>>,
+    internal_id: omeka::InternalId,
+) -> anyhow::Result<T> {
+    if values.len() > 1 {
+        log::info!(
+            "Resource with internal ID `{}` has multiple values for property `{}`. Using the first one.",
+            internal_id,
+            property,
+        );
+    }
+
+    match values.into_iter().next().map(|value| value.value) {
+        Some(value) => Ok(value),
+        None => {
+            anyhow::bail!(
+                "Resource with internal ID `{}` is missing required property `{}`.",
+                internal_id,
+                property,
+            );
+        }
+    }
+}
+
+fn expect_one<T>(
+    property: omeka::Property,
+    values: Vec<omeka::LiteralPropertyValue<T>>,
+    internal_id: omeka::InternalId,
+) -> Option<T> {
+    if values.len() > 1 {
+        log::info!(
+            "Resource with internal ID `{}` has multiple values for property `{}`. Using the first one.",
+            internal_id,
+            property,
+        );
+    }
+
+    match values.into_iter().next().map(|value| value.value) {
+        Some(value) => Some(value),
+        None => {
+            log::info!(
+                "Resource with internal ID `{}` is missing required property `{}`.",
+                internal_id,
+                property,
+            );
+
+            None
+        }
+    }
+}
+
+fn maybe_one<T>(
+    property: omeka::Property,
+    values: Vec<omeka::LiteralPropertyValue<T>>,
+    internal_id: omeka::InternalId,
+) -> Option<T>
+where
+    T: Clone,
+{
+    if values.len() > 1 {
+        log::info!(
+            "Resource with internal ID `{}` has multiple values for property `{}`. Using the first one.",
+            internal_id,
+            property,
+        );
+    }
+
+    values.first().map(|value| value.value.clone())
+}
+
 #[derive(Debug)]
 pub struct Resolver {
     client: omeka::Client,
@@ -128,21 +221,6 @@ impl Resolver {
         &self,
         key: ItemKey,
     ) -> anyhow::Result<Option<(omeka::InternalId, Option<ItemKey>)>> {
-        #[derive(Debug, Deserialize)]
-        struct PropertyValue<T> {
-            #[serde(rename = "@value")]
-            value: T,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct ItemResponse {
-            #[serde(rename = "o:id")]
-            internal_id: omeka::InternalId,
-
-            #[serde(rename = "ace:slug")]
-            ace_slug: Vec<PropertyValue<omeka::AceSlug>>,
-        }
-
         let (internal_item_id, canonical_item_key) = match key {
             ItemKey::ById(id) => {
                 let (response, _) = self
@@ -153,7 +231,7 @@ impl Resolver {
                     )
                     .await?;
 
-                let item_responses = response.json::<Vec<ItemResponse>>().await?;
+                let item_responses = response.json::<Vec<omeka::ItemResponse>>().await?;
 
                 if item_responses.len() > 1 {
                     log::warn!(
@@ -182,7 +260,7 @@ impl Resolver {
                     )
                     .await?;
 
-                let item_responses = response.json::<Vec<ItemResponse>>().await?;
+                let item_responses = response.json::<Vec<omeka::ItemResponse>>().await?;
 
                 if item_responses.len() > 1 {
                     log::warn!(
@@ -203,7 +281,7 @@ impl Resolver {
                             )
                             .await?;
 
-                        let item_responses = response.json::<Vec<ItemResponse>>().await?;
+                        let item_responses = response.json::<Vec<omeka::ItemResponse>>().await?;
 
                         if item_responses.len() > 1 {
                             log::warn!(
@@ -220,7 +298,7 @@ impl Resolver {
                             }
                         };
 
-                        let canonical_ace_slug = match item_response.ace_slug.first() {
+                        let canonical_ace_slug = match item_response.slug.first() {
                             Some(slug) => slug.value.clone(),
                             None => {
                                 log::warn!(
@@ -249,21 +327,6 @@ impl Resolver {
     // URL, short URL, or raw URL, return the Omeka URL for the media file. If the item resolves via
     // a slug alias, also return a URL using the canonical slug for that item.
     pub async fn resolve_media(&self, key: MediaLocator) -> anyhow::Result<Option<MediaLocation>> {
-        #[derive(Debug, Deserialize)]
-        struct PropertyValue<T> {
-            #[serde(rename = "@value")]
-            value: T,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct MediaResponse {
-            #[serde(rename = "o:original_url")]
-            original_url: String,
-
-            #[serde(rename = "ace:filename")]
-            ace_filename: Vec<PropertyValue<omeka::AceFilename>>,
-        }
-
         if let Some(cached_media_location) = cache::get_media_location(&key) {
             return Ok(Some(cached_media_location));
         }
@@ -284,7 +347,7 @@ impl Resolver {
             )
             .await?;
 
-        let media_responses = response.json::<Vec<MediaResponse>>().await?;
+        let media_responses = response.json::<Vec<omeka::MediaResponse>>().await?;
 
         if media_responses.len() > 1 {
             log::warn!(
@@ -298,9 +361,9 @@ impl Resolver {
             Some(media_response) => (
                 reqwest::Url::parse(&media_response.original_url)?,
                 match canonical_item_key {
-                    Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(url::format(
-                        key.clone().with_key(canonical_item_key),
-                    )?),
+                    Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(
+                        key.clone().with_key(canonical_item_key).to_url()?,
+                    ),
                     None => CanonicalUrl::AlreadyCanonical,
                 },
             ),
@@ -315,7 +378,7 @@ impl Resolver {
                     )
                     .await?;
 
-                let media_responses = response.json::<Vec<MediaResponse>>().await?;
+                let media_responses = response.json::<Vec<omeka::MediaResponse>>().await?;
 
                 if media_responses.len() > 1 {
                     log::warn!(
@@ -332,12 +395,12 @@ impl Resolver {
                     }
                 };
 
-                let canonical_filename = match media_response.ace_filename.first() {
+                let canonical_filename = match media_response.filename.first() {
                     Some(filename) => filename.value.clone(),
                     None => {
                         log::warn!(
                             "Media with URL `{}` has no `{}` property.",
-                            url::format(key)?,
+                            key.to_url()?,
                             omeka::Property::Filename,
                         );
 
@@ -348,14 +411,16 @@ impl Resolver {
                 (
                     reqwest::Url::parse(&media_response.original_url)?,
                     match canonical_item_key {
-                        Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(url::format(
+                        Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(
                             key.clone()
-                                .with_key_and_filename(canonical_item_key, canonical_filename),
-                        )?),
-                        None => CanonicalUrl::ShouldRedirect(url::format(
+                                .with_key_and_filename(canonical_item_key, canonical_filename)
+                                .to_url()?,
+                        ),
+                        None => CanonicalUrl::ShouldRedirect(
                             key.clone()
-                                .with_key_and_filename(key.clone().into(), canonical_filename),
-                        )?),
+                                .with_key_and_filename(key.clone().into(), canonical_filename)
+                                .to_url()?,
+                        ),
                     },
                 )
             }
@@ -373,103 +438,68 @@ impl Resolver {
 
     pub async fn get_media(
         &self,
-        item_id: omeka::AceId,
+        item_slug: omeka::AceSlug,
         media_id: omeka::InternalId,
     ) -> anyhow::Result<File> {
-        #[derive(Debug, Deserialize)]
-        struct PropertyValue<T> {
-            #[serde(rename = "@value")]
-            value: T,
-        }
+        let response = self.client.get_media(media_id).await?;
 
-        #[derive(Debug, Deserialize)]
-        struct MediaResponse {
-            #[serde(rename = "dcterms:title")]
-            title: PropertyValue<String>,
+        let media_response = response.json::<omeka::MediaResponse>().await?;
 
-            #[serde(rename = "ace:filename")]
-            filename: PropertyValue<String>,
+        let title = require_one(omeka::Property::Title, media_response.title, media_id)?;
+        let filename = require_one(omeka::Property::Filename, media_response.filename, media_id)?;
 
-            #[serde(rename = "o:media_type")]
-            media_type: String,
-        }
+        Ok(File {
+            title,
+            filename: filename.clone(),
+            media_type: media_response.media_type,
+            url: MediaLocator::Long {
+                slug: item_slug,
+                filename,
+            }
+            .to_url()?
+            .to_string(),
+        })
+    }
 
-        let _response = self.client.get_media(media_id).await?;
+    pub async fn get_collections(
+        &self,
+        item_set_id: omeka::InternalId,
+    ) -> anyhow::Result<Collection> {
+        let response = self.client.get_item_set(item_set_id).await?;
 
-        todo!()
+        let media_response = response.json::<omeka::ItemSetResponse>().await?;
+
+        let title = require_one(omeka::Property::Title, media_response.title, item_set_id)?;
+        let description = maybe_one(
+            omeka::Property::Description,
+            media_response.description,
+            item_set_id,
+        );
+
+        Ok(Collection {
+            id: item_set_id,
+            title,
+            description,
+        })
     }
 
     pub async fn list_items(&self) -> anyhow::Result<Vec<Item>> {
-        #[derive(Debug, Deserialize)]
-        struct LiteralPropertyValue<T> {
-            #[serde(rename = "@value")]
-            value: T,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct UrlPropertyValue {
-            #[serde(rename = "@id")]
-            url: String,
-
-            #[serde(rename = "o:label")]
+        #[derive(Debug)]
+        struct PartialItem {
+            id: omeka::AceId,
+            slug: omeka::AceSlug,
+            aliases: Vec<omeka::AceSlug>,
             title: String,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct ResourcePropertyValue {
-            #[serde(rename = "value_resource_id")]
-            id: omeka::InternalId,
-
-            #[serde(rename = "display_title")]
-            title: String,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct InternalIdPropertyValue {
-            #[serde(rename = "o:id")]
-            id: omeka::InternalId,
-        }
-
-        #[derive(Debug, Deserialize)]
-        struct ItemResponse {
-            #[serde(rename = "o:id")]
-            internal_id: omeka::InternalId,
-
-            #[serde(default, rename = "ace:id")]
-            id: Vec<LiteralPropertyValue<omeka::AceId>>,
-
-            #[serde(default, rename = "ace:slug")]
-            slug: Vec<LiteralPropertyValue<omeka::AceSlug>>,
-
-            #[serde(default, rename = "ace:slugAlias")]
-            slug_alias: Vec<LiteralPropertyValue<omeka::AceSlug>>,
-
-            #[serde(default, rename = "dcterms:title")]
-            title: Vec<LiteralPropertyValue<String>>,
-
-            #[serde(default, rename = "dcterms:description")]
-            description: Vec<LiteralPropertyValue<String>>,
-
-            #[serde(default, rename = "dcterms:abstract")]
-            summary: Vec<LiteralPropertyValue<String>>,
-
-            #[serde(default, rename = "dcterms:created")]
-            created: Vec<LiteralPropertyValue<String>>,
-
-            #[serde(default, rename = "dcterms:creator")]
-            creator: Vec<ResourcePropertyValue>,
-
-            #[serde(default, rename = "dcterms:subject")]
-            subject: Vec<UrlPropertyValue>,
-
-            #[serde(default, rename = "dcterms:relation")]
-            relation: Vec<UrlPropertyValue>,
-
-            #[serde(default, rename = "o:media")]
-            media: Vec<InternalIdPropertyValue>,
-
-            #[serde(default, rename = "o:item_set")]
-            item_set: Vec<InternalIdPropertyValue>,
+            summary: String,
+            description: Option<String>,
+            from_year: u32,
+            to_year: Option<u32>,
+            decades: Vec<u32>,
+            files: Vec<omeka::InternalId>,
+            links: Vec<Link>,
+            people: Vec<Person>,
+            identities: Vec<Identity>,
+            collections: Vec<omeka::InternalId>,
         }
 
         let (mut response, mut maybe_next_page) = self
@@ -482,168 +512,154 @@ impl Resolver {
             )
             .await?;
 
-        let mut media_responses = response.json::<Vec<ItemResponse>>().await?;
+        let mut media_responses = response.json::<Vec<omeka::ItemResponse>>().await?;
 
         // Page through the response and collect all items into a single vector.
         while let Some(next_page) = maybe_next_page {
             (response, maybe_next_page) = self.client.next_page(next_page).await?;
-            media_responses.extend(response.json::<Vec<ItemResponse>>().await?);
+            media_responses.extend(response.json::<Vec<omeka::ItemResponse>>().await?);
         }
 
-        fn unwrap_literal<T>(
-            property: omeka::Property,
-            values: Vec<LiteralPropertyValue<T>>,
-            internal_id: omeka::InternalId,
-        ) -> Option<T> {
-            if values.len() > 1 {
-                log::info!(
-                    "Item with internal ID `{}` has multiple values for property `{}`. Using the first one.",
-                    internal_id,
-                    property,
-                );
-            }
+        let partial_items = media_responses.into_iter().filter_map(|item_response| {
+            let internal_id = item_response.internal_id;
 
-            match values.into_iter().next().map(|value| value.value) {
-                Some(value) => Some(value),
-                None => {
-                    log::info!(
-                        "Item with internal ID `{}` is missing required property `{}`.",
-                        internal_id,
-                        property,
-                    );
+            // Required properties.
+            let id = expect_one(omeka::Property::AceId, item_response.id, internal_id)?;
+            let slug = expect_one(omeka::Property::Slug, item_response.slug, internal_id)?;
+            let title = expect_one(omeka::Property::Title, item_response.title, internal_id)?;
+            let summary = expect_one(
+                omeka::Property::Abstract,
+                item_response.summary,
+                internal_id,
+            )?;
+            let (from_year, to_year) =
+                expect_one(omeka::Property::Created, item_response.created, internal_id)?
+                    .split_once('/')
+                    .map(|(from, to)| (from.parse::<u32>().ok(), to.parse::<u32>().ok()))
+                    .unwrap_or((None, None));
+            let from_year = from_year?;
 
-                    None
-                }
-            }
-        }
+            // Optional single-value properties.
+            let description = maybe_one(
+                omeka::Property::Description,
+                item_response.description,
+                internal_id,
+            );
 
-        fn unwrap_literal_optional<T>(
-            property: omeka::Property,
-            values: Vec<LiteralPropertyValue<T>>,
-            internal_id: omeka::InternalId,
-        ) -> Option<T>
-        where
-            T: Clone,
-        {
-            if values.len() > 1 {
-                log::info!(
-                    "Item with internal ID `{}` has multiple values for property `{}`. Using the first one.",
-                    internal_id,
-                    property,
-                );
-            }
-
-            values.first().map(|value| value.value.clone())
-        }
-
-        Ok(media_responses
-            .into_iter()
-            .filter_map(|item_response| {
-                let internal_id = item_response.internal_id;
-
-                // Required properties.
-                let id = unwrap_literal(omeka::Property::AceId, item_response.id, internal_id)?;
-                let slug = unwrap_literal(omeka::Property::Slug, item_response.slug, internal_id)?;
-                let title =
-                    unwrap_literal(omeka::Property::Title, item_response.title, internal_id)?;
-                let summary = unwrap_literal(
-                    omeka::Property::Abstract,
-                    item_response.summary,
-                    internal_id,
-                )?;
-                let (from_year, to_year) =
-                    unwrap_literal(omeka::Property::Created, item_response.created, internal_id)?
-                        .split_once('/')
-                        .map(|(from, to)| (from.parse::<u32>().ok(), to.parse::<u32>().ok()))
-                        .unwrap_or((None, None));
-                let from_year = from_year?;
-
-                // Optional single-value properties.
-                let description = unwrap_literal_optional(
-                    omeka::Property::Description,
-                    item_response.description,
-                    internal_id,
-                );
-
-                // Multi-value properties.
-                let people = item_response
-                    .creator
-                    .into_iter()
-                    .map(|value| Person {
-                        id: value.id,
-                        title: value.title,
-                    })
-                    .collect();
-                let links = item_response
-                    .relation
-                    .into_iter()
-                    .map(|value| Link {
-                        title: value.title,
-                        url: value.url,
-                    })
-                    .collect();
-                let aliases = item_response
-                    .slug_alias
-                    .into_iter()
-                    .map(|value| value.value)
-                    .collect();
-                let identities = item_response
-                    .subject
-                    .into_iter()
-                    .map(|value| Identity {
-                        id: value.url.into(),
-                        title: value.title,
-                        description: Some(String::from("TODO: Pull from Homosaurus")),
-                    })
-                    .collect();
-                let collections = item_response
-                    .item_set
-                    .into_iter()
-                    .map(|value| Collection {
-                        id: value.id,
-                        title: String::from("TODO: Pull from item set"),
-                        description: Some(String::from("TODO: Pull from item set")),
-                    })
-                    .collect();
-                let files = item_response
-                    .media
-                    .into_iter()
-                    .map(|_| File {
-                        title: String::from("TODO: Pull from media"),
-                        filename: String::from("TODO: Pull from media").into(),
-                        media_type: String::from("TODO: Pull from media"),
-                        url: String::from("TODO: Pull from media"),
-                    })
-                    .collect();
-
-                // Computed properties.
-                let start_decade = from_year - (from_year % 10);
-                let end_decade = to_year.map(|year| year - (year % 10));
-                let decades = end_decade
-                    .map(|end_decade| {
-                        (start_decade..=end_decade)
-                            .step_by(10)
-                            .collect::<Vec<u32>>()
-                    })
-                    .unwrap_or(vec![start_decade]);
-
-                Some(Item {
-                    id,
-                    slug,
-                    title,
-                    description,
-                    summary,
-                    aliases,
-                    from_year,
-                    to_year,
-                    decades,
-                    files,
-                    links,
-                    people,
-                    identities,
-                    collections,
+            // Multi-value properties.
+            let people = item_response
+                .creator
+                .into_iter()
+                .map(|value| Person {
+                    id: value.id,
+                    title: value.title,
                 })
+                .collect();
+            let links = item_response
+                .relation
+                .into_iter()
+                .map(|value| Link {
+                    title: value.title,
+                    url: value.url,
+                })
+                .collect();
+            let aliases = item_response
+                .slug_alias
+                .into_iter()
+                .map(|value| value.value)
+                .collect();
+            let identities = item_response
+                .subject
+                .into_iter()
+                .map(|value| Identity {
+                    id: value.url.into(),
+                    title: value.title,
+                    description: Some(String::from("TODO: Pull from Homosaurus")),
+                })
+                .collect();
+            let collections = item_response
+                .item_set
+                .into_iter()
+                .map(|value| value.id)
+                .collect();
+            let files = item_response
+                .media
+                .into_iter()
+                .map(|media| media.id)
+                .collect();
+
+            // Computed properties.
+            let start_decade = from_year - (from_year % 10);
+            let end_decade = to_year.map(|year| year - (year % 10));
+            let decades = end_decade
+                .map(|end_decade| {
+                    (start_decade..=end_decade)
+                        .step_by(10)
+                        .collect::<Vec<u32>>()
+                })
+                .unwrap_or(vec![start_decade]);
+
+            Some(PartialItem {
+                id,
+                slug,
+                title,
+                description,
+                summary,
+                aliases,
+                from_year,
+                to_year,
+                decades,
+                files,
+                links,
+                people,
+                identities,
+                collections,
             })
-            .collect())
+        });
+
+        let mut items = Vec::new();
+
+        for partial_item in partial_items {
+            let mut files = Vec::new();
+
+            for media_id in partial_item.files {
+                log::info!(
+                    "Fetching media for item `{}` with media ID `{}`",
+                    partial_item.slug,
+                    media_id
+                );
+                files.push(self.get_media(partial_item.slug.clone(), media_id).await?);
+            }
+
+            let mut collections = Vec::new();
+
+            for collection_id in partial_item.collections {
+                log::info!(
+                    "Fetching collection for item `{}` with collection ID `{}`",
+                    partial_item.slug,
+                    collection_id
+                );
+                collections.push(self.get_collections(collection_id).await?);
+            }
+
+            items.push(Item {
+                id: partial_item.id,
+                slug: partial_item.slug,
+                aliases: partial_item.aliases,
+                title: partial_item.title,
+                summary: partial_item.summary,
+                description: partial_item.description,
+                from_year: partial_item.from_year,
+                to_year: partial_item.to_year,
+                decades: partial_item.decades,
+                files,
+                links: partial_item.links,
+                people: partial_item.people,
+                identities: partial_item.identities,
+                collections,
+            });
+        }
+
+        Ok(items)
     }
 }
