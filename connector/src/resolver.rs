@@ -145,7 +145,7 @@ impl Resolver {
 
         let (internal_item_id, canonical_item_key) = match key {
             ItemKey::ById(id) => {
-                let response = self
+                let (response, _) = self
                     .client
                     .find(
                         omeka::ResourceType::Item,
@@ -174,7 +174,7 @@ impl Resolver {
                 (internal_id, None)
             }
             ItemKey::BySlug(slug) => {
-                let response = self
+                let (response, _) = self
                     .client
                     .find(
                         omeka::ResourceType::Item,
@@ -195,7 +195,7 @@ impl Resolver {
                 match item_responses.first() {
                     Some(item_response) => (item_response.internal_id, None),
                     None => {
-                        let response = self
+                        let (response, _) = self
                             .client
                             .find(
                                 omeka::ResourceType::Item,
@@ -274,7 +274,7 @@ impl Resolver {
                 None => return Ok(None),
             };
 
-        let response = self
+        let (response, _) = self
             .client
             .find(
                 omeka::ResourceType::Media,
@@ -305,7 +305,7 @@ impl Resolver {
                 },
             ),
             None => {
-                let response = self
+                let (response, _) = self
                     .client
                     .find(
                         omeka::ResourceType::Media,
@@ -369,6 +369,34 @@ impl Resolver {
         cache::put_media_location(key, media_location.clone());
 
         Ok(Some(media_location))
+    }
+
+    pub async fn get_media(
+        &self,
+        item_id: omeka::AceId,
+        media_id: omeka::InternalId,
+    ) -> anyhow::Result<File> {
+        #[derive(Debug, Deserialize)]
+        struct PropertyValue<T> {
+            #[serde(rename = "@value")]
+            value: T,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct MediaResponse {
+            #[serde(rename = "dcterms:title")]
+            title: PropertyValue<String>,
+
+            #[serde(rename = "ace:filename")]
+            filename: PropertyValue<String>,
+
+            #[serde(rename = "o:media_type")]
+            media_type: String,
+        }
+
+        let _response = self.client.get_media(media_id).await?;
+
+        todo!()
     }
 
     pub async fn list_items(&self) -> anyhow::Result<Vec<Item>> {
@@ -444,7 +472,7 @@ impl Resolver {
             item_set: Vec<InternalIdPropertyValue>,
         }
 
-        let response = self
+        let (mut response, mut maybe_next_page) = self
             .client
             .find(
                 omeka::ResourceType::Item,
@@ -454,38 +482,11 @@ impl Resolver {
             )
             .await?;
 
-        let mut maybe_link_header = response
-            .headers()
-            .get("Link")
-            .and_then(|value| value.to_str().ok())
-            .map(ToString::to_string);
-
         let mut media_responses = response.json::<Vec<ItemResponse>>().await?;
 
-        // Paginate the API call and collect all items into a single vector.
-        while let Some(link_header) = maybe_link_header {
-            let next_url =
-                match parse_link_header::parse(&link_header)?.get(&Some(String::from("next"))) {
-                    Some(next_url) => next_url.raw_uri.clone(),
-                    None => break,
-                };
-
-            let response = self.client.raw_client().get(&next_url).send().await?;
-
-            maybe_link_header = response
-                .headers()
-                .get("Link")
-                .and_then(|value| value.to_str().ok())
-                .map(ToString::to_string);
-
-            if !response.status().is_success() {
-                anyhow::bail!(
-                    "Omeka request failed with {}: {}",
-                    response.status(),
-                    next_url
-                );
-            }
-
+        // Page through the response and collect all items into a single vector.
+        while let Some(next_page) = maybe_next_page {
+            (response, maybe_next_page) = self.client.next_page(next_page).await?;
             media_responses.extend(response.json::<Vec<ItemResponse>>().await?);
         }
 

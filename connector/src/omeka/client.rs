@@ -1,4 +1,4 @@
-use super::property::{Property, ResourceFilter, ResourceType};
+use super::property::{InternalId, Property, ResourceFilter, ResourceType};
 use crate::config;
 
 #[derive(Debug)]
@@ -33,6 +33,32 @@ impl FindQuery {
     }
 }
 
+/// A pointer to the next page of a paginated API response.
+#[derive(Debug)]
+pub struct NextPage {
+    url: reqwest::Url,
+}
+
+impl NextPage {
+    fn from_headers(headers: &reqwest::header::HeaderMap) -> anyhow::Result<Option<Self>> {
+        let next_url = headers
+            .get("Link")
+            .and_then(|value| value.to_str().ok())
+            .map(parse_link_header::parse)
+            .transpose()?
+            .map(|header| {
+                header
+                    .get(&Some(String::from("next")))
+                    .map(|next| next.raw_uri.clone())
+            })
+            .flatten()
+            .map(|url| reqwest::Url::parse(&url))
+            .transpose()?;
+
+        Ok(next_url.map(|url| NextPage { url }))
+    }
+}
+
 #[derive(Debug)]
 pub struct Client {
     pub base_url: reqwest::Url,
@@ -42,10 +68,6 @@ pub struct Client {
 impl Client {
     fn new(client: reqwest::Client, base_url: reqwest::Url) -> Self {
         Client { base_url, client }
-    }
-
-    pub fn raw_client(&self) -> &reqwest::Client {
-        &self.client
     }
 
     pub fn from_config(client: reqwest::Client) -> anyhow::Result<Self> {
@@ -66,7 +88,7 @@ impl Client {
         &self,
         resource: ResourceType,
         query: &FindQuery,
-    ) -> anyhow::Result<reqwest::Response> {
+    ) -> anyhow::Result<(reqwest::Response, Option<NextPage>)> {
         let mut url = self.base_endpoint()?;
 
         url.path_segments_mut()
@@ -121,6 +143,41 @@ impl Client {
             );
         }
 
-        Ok(response)
+        let next_page = NextPage::from_headers(response.headers())?;
+
+        Ok((response, next_page))
+    }
+
+    pub async fn next_page(
+        &self,
+        next_page: NextPage,
+    ) -> anyhow::Result<(reqwest::Response, Option<NextPage>)> {
+        let response = self.client.get(next_page.url.clone()).send().await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "Omeka request failed with {}: {}",
+                response.status(),
+                next_page.url.as_str()
+            );
+        }
+
+        let next_page = NextPage::from_headers(response.headers())?;
+
+        Ok((response, next_page))
+    }
+
+    pub async fn get_media(&self, media_id: InternalId) -> anyhow::Result<reqwest::Response> {
+        self.client
+            .get(self.base_endpoint()?.join(&format!("media/{}", media_id))?)
+            .send()
+            .await
+            .map_err(|error| {
+                anyhow::anyhow!(
+                    "Failed to get media with internal id `{}`: {}",
+                    media_id,
+                    error
+                )
+            })
     }
 }
