@@ -462,6 +462,7 @@ impl Resolver {
 
         let mut media_responses = response.json::<Vec<ItemResponse>>().await?;
 
+        // Paginate the API call and collect all items into a single vector.
         while let Some(link_header) = maybe_link_header {
             let next_url =
                 match parse_link_header::parse(&link_header)?.get(&Some(String::from("next"))) {
@@ -493,6 +494,14 @@ impl Resolver {
             values: Vec<LiteralPropertyValue<T>>,
             internal_id: omeka::InternalId,
         ) -> Option<T> {
+            if values.len() > 1 {
+                log::info!(
+                    "Item with internal ID `{}` has multiple values for property `{}`. Using the first one.",
+                    internal_id,
+                    property,
+                );
+            }
+
             match values.into_iter().next().map(|value| value.value) {
                 Some(value) => Some(value),
                 None => {
