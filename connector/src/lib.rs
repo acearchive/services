@@ -3,6 +3,7 @@
 mod cache;
 pub mod config;
 mod logger;
+mod model;
 mod omeka;
 mod resolver;
 mod router;

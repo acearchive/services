@@ -4,6 +4,7 @@ use crate::config;
 #[derive(Debug)]
 pub struct FindQuery {
     properties: Vec<(Property, String)>,
+    has_properties: Vec<Property>,
     filters: Vec<ResourceFilter>,
 }
 
@@ -11,12 +12,18 @@ impl FindQuery {
     pub fn new() -> Self {
         FindQuery {
             properties: Vec::new(),
+            has_properties: Vec::new(),
             filters: Vec::new(),
         }
     }
 
     pub fn property<T: AsRef<str>>(&mut self, property: Property, value: T) -> &mut Self {
         self.properties.push((property, value.as_ref().to_string()));
+        self
+    }
+
+    pub fn has_property(&mut self, property: Property) -> &mut Self {
+        self.has_properties.push(property);
         self
     }
 
@@ -64,13 +71,31 @@ impl Client {
 
         {
             let mut query_pairs_mut = url.query_pairs_mut();
+            let mut counter = 0;
+
+            for property in &query.has_properties {
+                query_pairs_mut.extend_pairs(&[
+                    (
+                        format!("property[{}][property]", counter),
+                        property.as_str(),
+                    ),
+                    (format!("property[{}][type]", counter), "ex"),
+                ]);
+
+                counter += 1;
+            }
 
             for (property, value) in &query.properties {
                 query_pairs_mut.extend_pairs(&[
-                    ("property[0][property]", property.as_str()),
-                    ("property[0][type]", "eq"),
-                    ("property[0][text]", value),
+                    (
+                        format!("property[{}][property]", counter),
+                        property.as_str(),
+                    ),
+                    (format!("property[{}][type]", counter), "eq"),
+                    (format!("property[{}][text]", counter), value),
                 ]);
+
+                counter += 1;
             }
 
             for filter in &query.filters {
@@ -84,7 +109,7 @@ impl Client {
         let response = self.client.get(url.clone()).send().await?;
 
         if !response.status().is_success() {
-            log::error!(
+            anyhow::bail!(
                 "Omeka request failed with {}: {}",
                 response.status(),
                 url.as_str()

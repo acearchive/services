@@ -1,8 +1,9 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Deserialize)]
+// An Omeka internal ID.
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize)]
 pub struct InternalId(u32);
 
 impl fmt::Display for InternalId {
@@ -11,7 +12,32 @@ impl fmt::Display for InternalId {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Deserialize)]
+impl FromStr for InternalId {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let id = s.parse::<u32>()?;
+        Ok(InternalId(id))
+    }
+}
+
+// An ID from some external system, like Homosaurus.
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+pub struct ExternalId(String);
+
+impl From<String> for ExternalId {
+    fn from(s: String) -> Self {
+        ExternalId(s)
+    }
+}
+
+impl fmt::Display for ExternalId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct AceId(String);
 
 impl AsRef<str> for AceId {
@@ -26,7 +52,7 @@ impl fmt::Display for AceId {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct AceSlug(String);
 
 impl AsRef<str> for AceSlug {
@@ -41,8 +67,14 @@ impl fmt::Display for AceSlug {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct AceFilename(String);
+
+impl From<String> for AceFilename {
+    fn from(s: String) -> Self {
+        AceFilename(s)
+    }
+}
 
 impl AsRef<str> for AceFilename {
     fn as_ref(&self) -> &str {
@@ -92,6 +124,10 @@ pub enum Property {
     SlugAlias,
     Filename,
     FilenameAlias,
+    Title,
+    Abstract,
+    Created,
+    Description,
 }
 
 impl Property {
@@ -105,6 +141,10 @@ impl Property {
             Property::SlugAlias => "ace:slugAlias",
             Property::Filename => "ace:filename",
             Property::FilenameAlias => "ace:filenameAlias",
+            Property::Title => "dcterms:title",
+            Property::Abstract => "dcterms:abstract",
+            Property::Description => "dcterms:description",
+            Property::Created => "dcterms:created",
         }
     }
 }

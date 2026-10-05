@@ -1,7 +1,7 @@
 use std::fmt;
 
 use axum::{
-    Router,
+    Json, Router,
     body::Body,
     extract::Path,
     http::StatusCode,
@@ -10,6 +10,7 @@ use axum::{
 };
 
 use super::{
+    model::Item,
     omeka,
     resolver::{CanonicalUrl, MediaLocator, Resolver},
 };
@@ -20,6 +21,7 @@ pub fn new() -> Router {
         .route("/media/artifacts/{slug}/{filename}", get(get_media_long))
         .route("/media/a/{id}/{filename}", get(get_media_short))
         .route("/media/r/{id}/{filename}", get(get_media_raw))
+        .route("/items", get(get_items))
 }
 
 fn map_error<E>(code: StatusCode) -> impl FnOnce(E) -> StatusCode
@@ -93,4 +95,19 @@ async fn get_media_raw(
     Path((id, filename)): Path<(omeka::AceId, omeka::AceFilename)>,
 ) -> Result<impl IntoResponse, StatusCode> {
     get_media(MediaLocator::Raw { id, filename }).await
+}
+
+#[axum::debug_handler]
+async fn get_items() -> Result<Json<Vec<Item>>, StatusCode> {
+    let client = reqwest::Client::new();
+    let omeka_client = omeka::Client::from_config(client.clone())
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+    let resolver = Resolver::new(omeka_client);
+
+    Ok(Json(
+        resolver
+            .list_items()
+            .await
+            .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
+    ))
 }

@@ -1,6 +1,10 @@
 use serde::Deserialize;
 
-use super::{cache, omeka, url};
+use super::{
+    cache,
+    model::{Collection, File, Identity, Item, Link, Person},
+    omeka, url,
+};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum MediaLocator {
@@ -365,5 +369,239 @@ impl Resolver {
         cache::put_media_location(key, media_location.clone());
 
         Ok(Some(media_location))
+    }
+
+    pub async fn list_items(&self) -> anyhow::Result<Vec<Item>> {
+        #[derive(Debug, Deserialize)]
+        struct LiteralPropertyValue<T> {
+            #[serde(rename = "@value")]
+            value: T,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct UrlPropertyValue {
+            #[serde(rename = "@id")]
+            url: String,
+
+            #[serde(rename = "o:label")]
+            title: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct ResourcePropertyValue {
+            #[serde(rename = "value_resource_id")]
+            id: omeka::InternalId,
+
+            #[serde(rename = "display_title")]
+            title: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct InternalIdPropertyValue {
+            #[serde(rename = "o:id")]
+            id: omeka::InternalId,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct ItemResponse {
+            #[serde(rename = "o:id")]
+            internal_id: omeka::InternalId,
+
+            #[serde(default, rename = "ace:id")]
+            id: Vec<LiteralPropertyValue<omeka::AceId>>,
+
+            #[serde(default, rename = "ace:slug")]
+            slug: Vec<LiteralPropertyValue<omeka::AceSlug>>,
+
+            #[serde(default, rename = "ace:slugAlias")]
+            slug_alias: Vec<LiteralPropertyValue<omeka::AceSlug>>,
+
+            #[serde(default, rename = "dcterms:title")]
+            title: Vec<LiteralPropertyValue<String>>,
+
+            #[serde(default, rename = "dcterms:description")]
+            description: Vec<LiteralPropertyValue<String>>,
+
+            #[serde(default, rename = "dcterms:abstract")]
+            summary: Vec<LiteralPropertyValue<String>>,
+
+            #[serde(default, rename = "dcterms:created")]
+            created: Vec<LiteralPropertyValue<String>>,
+
+            #[serde(default, rename = "dcterms:creator")]
+            creator: Vec<ResourcePropertyValue>,
+
+            #[serde(default, rename = "dcterms:subject")]
+            subject: Vec<UrlPropertyValue>,
+
+            #[serde(default, rename = "dcterms:relation")]
+            relation: Vec<UrlPropertyValue>,
+
+            #[serde(default, rename = "o:media")]
+            media: Vec<InternalIdPropertyValue>,
+
+            #[serde(default, rename = "o:item_set")]
+            item_set: Vec<InternalIdPropertyValue>,
+        }
+
+        let response = self
+            .client
+            .find(
+                omeka::ResourceType::Item,
+                omeka::FindQuery::new()
+                    .has_property(omeka::Property::AceId)
+                    .has_property(omeka::Property::Slug),
+            )
+            .await?;
+
+        let media_responses = response.json::<Vec<ItemResponse>>().await?;
+
+        fn unwrap_literal<T>(
+            property: omeka::Property,
+            values: Vec<LiteralPropertyValue<T>>,
+            internal_id: omeka::InternalId,
+        ) -> Option<T> {
+            match values.into_iter().next().map(|value| value.value) {
+                Some(value) => Some(value),
+                None => {
+                    log::info!(
+                        "Item with internal ID `{}` is missing required property `{}`.",
+                        internal_id,
+                        property,
+                    );
+
+                    None
+                }
+            }
+        }
+
+        fn unwrap_literal_optional<T>(
+            property: omeka::Property,
+            values: Vec<LiteralPropertyValue<T>>,
+            internal_id: omeka::InternalId,
+        ) -> Option<T>
+        where
+            T: Clone,
+        {
+            if values.len() > 1 {
+                log::info!(
+                    "Item with internal ID `{}` has multiple values for property `{}`. Using the first one.",
+                    internal_id,
+                    property,
+                );
+            }
+
+            values.first().map(|value| value.value.clone())
+        }
+
+        Ok(media_responses
+            .into_iter()
+            .filter_map(|item_response| {
+                let internal_id = item_response.internal_id;
+
+                // Required properties.
+                let id = unwrap_literal(omeka::Property::AceId, item_response.id, internal_id)?;
+                let slug = unwrap_literal(omeka::Property::Slug, item_response.slug, internal_id)?;
+                let title =
+                    unwrap_literal(omeka::Property::Title, item_response.title, internal_id)?;
+                let summary = unwrap_literal(
+                    omeka::Property::Abstract,
+                    item_response.summary,
+                    internal_id,
+                )?;
+                let (from_year, to_year) =
+                    unwrap_literal(omeka::Property::Created, item_response.created, internal_id)?
+                        .split_once('/')
+                        .map(|(from, to)| (from.parse::<u32>().ok(), to.parse::<u32>().ok()))
+                        .unwrap_or((None, None));
+                let from_year = from_year?;
+
+                // Optional single-value properties.
+                let description = unwrap_literal_optional(
+                    omeka::Property::Description,
+                    item_response.description,
+                    internal_id,
+                );
+
+                // Multi-value properties.
+                let people = item_response
+                    .creator
+                    .into_iter()
+                    .map(|value| Person {
+                        id: value.id,
+                        title: value.title,
+                    })
+                    .collect();
+                let links = item_response
+                    .relation
+                    .into_iter()
+                    .map(|value| Link {
+                        title: value.title,
+                        url: value.url,
+                    })
+                    .collect();
+                let aliases = item_response
+                    .slug_alias
+                    .into_iter()
+                    .map(|value| value.value)
+                    .collect();
+                let identities = item_response
+                    .subject
+                    .into_iter()
+                    .map(|value| Identity {
+                        id: value.url.into(),
+                        title: value.title,
+                        description: Some(String::from("TODO: Pull from Homosaurus")),
+                    })
+                    .collect();
+                let collections = item_response
+                    .item_set
+                    .into_iter()
+                    .map(|value| Collection {
+                        id: value.id,
+                        title: String::from("TODO: Pull from item set"),
+                        description: Some(String::from("TODO: Pull from item set")),
+                    })
+                    .collect();
+                let files = item_response
+                    .media
+                    .into_iter()
+                    .map(|_| File {
+                        title: String::from("TODO: Pull from media"),
+                        filename: String::from("TODO: Pull from media").into(),
+                        media_type: String::from("TODO: Pull from media"),
+                        url: String::from("TODO: Pull from media"),
+                    })
+                    .collect();
+
+                // Computed properties.
+                let start_decade = from_year - (from_year % 10);
+                let end_decade = to_year.map(|year| year - (year % 10));
+                let decades = end_decade
+                    .map(|end_decade| {
+                        (start_decade..=end_decade)
+                            .step_by(10)
+                            .collect::<Vec<u32>>()
+                    })
+                    .unwrap_or(vec![start_decade]);
+
+                Some(Item {
+                    id,
+                    slug,
+                    title,
+                    description,
+                    summary,
+                    aliases,
+                    from_year,
+                    to_year,
+                    decades,
+                    files,
+                    links,
+                    people,
+                    identities,
+                    collections,
+                })
+            })
+            .collect())
     }
 }
