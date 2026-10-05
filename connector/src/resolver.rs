@@ -454,7 +454,39 @@ impl Resolver {
             )
             .await?;
 
-        let media_responses = response.json::<Vec<ItemResponse>>().await?;
+        let mut maybe_link_header = response
+            .headers()
+            .get("Link")
+            .and_then(|value| value.to_str().ok())
+            .map(ToString::to_string);
+
+        let mut media_responses = response.json::<Vec<ItemResponse>>().await?;
+
+        while let Some(link_header) = maybe_link_header {
+            let next_url =
+                match parse_link_header::parse(&link_header)?.get(&Some(String::from("next"))) {
+                    Some(next_url) => next_url.raw_uri.clone(),
+                    None => break,
+                };
+
+            let response = self.client.raw_client().get(&next_url).send().await?;
+
+            maybe_link_header = response
+                .headers()
+                .get("Link")
+                .and_then(|value| value.to_str().ok())
+                .map(ToString::to_string);
+
+            if !response.status().is_success() {
+                anyhow::bail!(
+                    "Omeka request failed with {}: {}",
+                    response.status(),
+                    next_url
+                );
+            }
+
+            media_responses.extend(response.json::<Vec<ItemResponse>>().await?);
+        }
 
         fn unwrap_literal<T>(
             property: omeka::Property,

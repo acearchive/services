@@ -44,6 +44,10 @@ impl Client {
         Client { base_url, client }
     }
 
+    pub fn raw_client(&self) -> &reqwest::Client {
+        &self.client
+    }
+
     pub fn from_config(client: reqwest::Client) -> anyhow::Result<Self> {
         Ok(Client::new(client, config::omeka_url()?))
     }
@@ -71,6 +75,12 @@ impl Client {
 
         {
             let mut query_pairs_mut = url.query_pairs_mut();
+
+            for filter in &query.filters {
+                let (key, value) = filter.as_query_param();
+                query_pairs_mut.append_pair(&key, &value);
+            }
+
             let mut counter = 0;
 
             for property in &query.has_properties {
@@ -96,11 +106,6 @@ impl Client {
                 ]);
 
                 counter += 1;
-            }
-
-            for filter in &query.filters {
-                let (key, value) = filter.as_query_param();
-                query_pairs_mut.append_pair(&key, &value);
             }
 
             query_pairs_mut.finish();

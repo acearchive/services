@@ -12,6 +12,7 @@ dependencies = [
  "flexi_logger",
  "log",
  "lru",
+ "parse_link_header",
  "reqwest",
  "secrecy",
  "serde",
@@ -849,6 +850,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy_static"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
+
+[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -955,6 +962,17 @@ name = "openssl-probe"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
+
+[[package]]
+name = "parse_link_header"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4eb9c7a76731a2792f9b97fb34c1e774fff008badcd449d61fcdacb7a912392b"
+dependencies = [
+ "http",
+ "lazy_static",
+ "regex",
+]
 
 [[package]]
 name = "percent-encoding"
