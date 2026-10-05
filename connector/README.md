@@ -1,7 +1,7 @@
-# Ace Archive Data Connector
+# Omeka Data Connector
 
-This service sits alongside the Omeka S installation and is responsible for
-pulling data out of it. It has a few responsibilities:
+This service is deployed alongside the Omeka S installation and sits between
+the frontend edge functions and the Omeka S API. It has a few responsibilities:
 
 1. Serve media files from the collection.
 2. Serve metadata that the [Hugo

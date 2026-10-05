@@ -1,7 +1,8 @@
 # Ace Archive Services
 
-This is the (future) monorepo for the various backend services that support
-[Ace Archive](https://acearchive.lgbt).
+This is the monorepo for the various backend services that support [Ace
+Archive](https://acearchive.lgbt).
 
-There are several services spread across repositories in the organization; the
-eventual goal is to consolidate them here.
+- [Omeka Data Connector](./connector/): This service is deployed alongside the
+  Omeka S installation and sits between the frontend edge functions and the Omeka
+  S API.
