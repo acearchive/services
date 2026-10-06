@@ -525,7 +525,6 @@ impl Resolver {
                     .map(|value| Identity {
                         id: value.url.into(),
                         title: value.title,
-                        description: Some(String::from("TODO: Pull from Homosaurus")),
                     })
                     .collect();
                 let collections = item_response

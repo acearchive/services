@@ -28,7 +28,8 @@ pub struct Person {
 pub struct Identity {
     pub id: ExternalId,
     pub title: String,
-    pub description: Option<String>,
+    // TODO: Pull a description from Homosaurus.
+    // pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
