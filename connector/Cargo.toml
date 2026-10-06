@@ -8,6 +8,10 @@ rust-version = "1.90.0"
 name = "acearchive-data-connector"
 path = "src/bin/connector.rs"
 
+[[bin]]
+name = "healthcheck"
+path = "src/bin/healthcheck.rs"
+
 [dependencies]
 anyhow = "1.0.104"
 axum = { version = "0.8.9", features = ["json", "macros"] }

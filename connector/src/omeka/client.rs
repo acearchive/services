@@ -145,7 +145,7 @@ impl Client {
     ) -> anyhow::Result<(reqwest::Response, Option<NextPage>)> {
         let response = self.client.get(next_page.url.clone()).send().await?;
 
-        log::info!("GET {}", &next_page.url);
+        log::info!("GET {}", next_page.url);
 
         if !response.status().is_success() {
             anyhow::bail!(

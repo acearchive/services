@@ -74,3 +74,9 @@ from a `.env` file if one is available.
   should probably not point to a directory on tmpfs for similar.
 - `DATA_EXPORT_CRON_SPEC`: A cron spec which determines the frequency of
   automatic data exports. If unset, automatic data exports are disabled.
+
+## Deployment
+
+A CI workflow publishes a container image `ghcr.io/acearchive/omeka-connector`.
+The image includes a healthcheck binary at `/usr/local/bin/healthcheck` which
+checks the server's `/health` endpoint.

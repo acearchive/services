@@ -1,0 +1,6 @@
+/target/
+/scratch/
+.env
+.env.*
+Dockerfile
+.dockerignore
