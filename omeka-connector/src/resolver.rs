@@ -131,7 +131,6 @@ pub enum CanonicalUrl {
 #[derive(Debug, Clone)]
 pub struct MediaLocation {
     pub omeka_url: reqwest::Url,
-    // If `None`, we're already at the canonical URL. If `Some`, we need to redirect.
     pub canonical_url: CanonicalUrl,
 }
 
@@ -191,6 +190,8 @@ impl Resolver {
         Resolver { client }
     }
 
+    /// Resolve Ace Archive identifiers to an Omeka internal item ID.
+    ///
     /// Given the ID or slug of an item in the collection, return its internal Omeka ID. If given a
     /// slug that does not resolve, check it against slug aliases. If it resolves via an alias, also
     /// return the canonical slug for that item.
@@ -301,9 +302,13 @@ impl Resolver {
         Ok(Some((internal_item_id, canonical_item_key)))
     }
 
-    // Given the ID or slug of an item in the collection, a filename, and whether this is a long
-    // URL, short URL, or raw URL, return the Omeka URL for the media file. If the item resolves via
-    // a slug alias, also return a URL using the canonical slug for that item.
+    /// Resolve Ace Archive identifiers to an Omeka media URL.
+    ///
+    /// Given the ID or slug of an item in the collection, a filename, and whether this is a "long"
+    /// URL, "short" URL, or "raw" URL, return the Omeka URL for the media file.
+    ///
+    /// If the media resolves via a slug alias and/or a filename alias, also return the file's
+    /// canonical URL.
     pub async fn resolve_media(&self, key: MediaLocator) -> anyhow::Result<Option<MediaLocation>> {
         if let Some(cached_media_location) = cache::get_media_location(&key) {
             return Ok(Some(cached_media_location));
@@ -414,7 +419,11 @@ impl Resolver {
         Ok(Some(media_location))
     }
 
+    /// Return metadata about every item in the collection.
     pub async fn list_items(&self) -> anyhow::Result<Vec<Item>> {
+        // Given the size of the archive, paginating through all items, item sets, and media and
+        // collecting them in memory is going to be much faster than the alternative.
+        //
         // TODO: Can these API calls be made concurrent?
         let (mut response, mut maybe_next_page) = self
             .client
