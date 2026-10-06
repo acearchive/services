@@ -10,3 +10,5 @@ Archive](https://acearchive.lgbt).
 - [Media Proxy](./media-proxy/): This edge function is a small reverse proxy
   that sits between users and the Omeka Data Connector. Its job is to rewrite
   URLs and facilitate edge caching of media files.
+- [Infrastructure](./infra/): This OpenTofu configuration sets up necessary
+  infrastructure.
