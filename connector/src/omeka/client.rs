@@ -124,6 +124,8 @@ impl Client {
 
         let response = self.client.get(url.clone()).send().await?;
 
+        log::info!("GET {}", url.as_str());
+
         if !response.status().is_success() {
             anyhow::bail!(
                 "Omeka request failed with {}: {}",
@@ -142,6 +144,8 @@ impl Client {
         next_page: NextPage,
     ) -> anyhow::Result<(reqwest::Response, Option<NextPage>)> {
         let response = self.client.get(next_page.url.clone()).send().await?;
+
+        log::info!("GET {}", &next_page.url);
 
         if !response.status().is_success() {
             anyhow::bail!(
