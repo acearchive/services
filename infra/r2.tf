@@ -14,9 +14,9 @@ resource "cloudflare_r2_bucket" "omeka_backups" {
 }
 
 # Bucket lifecycle rules automatically prune old backups.
-resource "cloudflare_r2_bucket_lifecycle" "backups" {
+resource "cloudflare_r2_bucket_lifecycle" "omeka_backups" {
   account_id  = var.cloudflare_account_id
-  bucket_name = cloudflare_r2_bucket.backups.name
+  bucket_name = cloudflare_r2_bucket.omeka_backups.name
 
   rules = [for tier, retention in local.backup_retention : {
     id         = "expire-${tier}"
@@ -32,9 +32,9 @@ resource "cloudflare_r2_bucket_lifecycle" "backups" {
 }
 
 # Bucket locks prevent backups from being overwritten or deleted prematurely.
-resource "cloudflare_r2_bucket_lock" "backups" {
+resource "cloudflare_r2_bucket_lock" "omeka_backups" {
   account_id  = var.cloudflare_account_id
-  bucket_name = cloudflare_r2_bucket.backups.name
+  bucket_name = cloudflare_r2_bucket.omeka_backups.name
 
   rules = [for tier, retention in local.backup_retention : {
     id      = "lock-${tier}"
