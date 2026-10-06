@@ -52,7 +52,7 @@ makes for a long response time (on the order of several seconds), but that is
 acceptable because it is only called once at site build time and removes
 significant complexity from the static site template.
 
-### Generating backups
+### Generating data exports
 
 This service generates periodic data exports of the collection in portable
 human- and machine-readable formats suitable for distribution.
@@ -73,4 +73,4 @@ from a `.env` file if one is available.
   not need to be durable, but it is used for assembling large ZIP archives, so it
   should probably not point to a directory on tmpfs for similar.
 - `DATA_EXPORT_CRON_SPEC`: A cron spec which determines the frequency of
-  automatic data exports.
+  automatic data exports. If unset, automatic data exports are disabled.
