@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "connector/**"
-      - ".github/workflows/connector.yaml"
+      - "omeka-connector/**"
+      - ".github/workflows/omeka-connector.yaml"
   pull_request:
     paths:
-      - "connector/**"
-      - ".github/workflows/connector.yaml"
+      - "omeka-connector/**"
+      - ".github/workflows/omeka-connector.yaml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,7 +23,7 @@ env:
 
 defaults:
   run:
-    working-directory: connector/
+    working-directory: omeka-connector/
 
 jobs:
   lint:
@@ -39,7 +39,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: connector
+          workspaces: omeka-connector
 
       - name: Run clippy
         run: cargo clippy --locked --all-targets
@@ -75,7 +75,7 @@ jobs:
 
       - uses: docker/build-push-action@v7
         with:
-          context: connector
+          context: omeka-connector
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
