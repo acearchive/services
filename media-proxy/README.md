@@ -9,8 +9,8 @@ Workers](https://developers.cloudflare.com/workers/) platform.
 
 ## What it does
 
-This edge forwards requests to `files.acearchive.lgbt` to the Omeka Data
-Connector. It accepts URLs that follow one of these patterns.
+This edge function forwards requests to `files.acearchive.lgbt` to the Omeka
+Data Connector. It accepts URLs that follow one of these patterns.
 
 ```
 https://files.acearchive.lgbt/artifacts/<ARTIFACT_SLUG>/<FILENAME>
