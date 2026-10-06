@@ -17,17 +17,17 @@ impl FindQuery {
         }
     }
 
-    pub fn property<T: AsRef<str>>(&mut self, property: Property, value: T) -> &mut Self {
+    pub fn property<T: AsRef<str>>(mut self, property: Property, value: T) -> Self {
         self.properties.push((property, value.as_ref().to_string()));
         self
     }
 
-    pub fn has_property(&mut self, property: Property) -> &mut Self {
+    pub fn has_property(mut self, property: Property) -> Self {
         self.has_properties.push(property);
         self
     }
 
-    pub fn filter(&mut self, filter: ResourceFilter) -> &mut Self {
+    pub fn filter(mut self, filter: ResourceFilter) -> Self {
         self.filters.push(filter);
         self
     }

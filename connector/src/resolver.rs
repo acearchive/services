@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use futures::future::{self, FutureExt};
-
 use super::{
     cache, config,
     models::{Collection, File, Identity, Item, Link, Person},
@@ -206,7 +204,7 @@ impl Resolver {
                     .client
                     .find(
                         omeka::ResourceType::Item,
-                        omeka::FindQuery::new().property(omeka::Property::AceId, &id),
+                        &omeka::FindQuery::new().property(omeka::Property::AceId, &id),
                     )
                     .await?;
 
@@ -235,7 +233,7 @@ impl Resolver {
                     .client
                     .find(
                         omeka::ResourceType::Item,
-                        omeka::FindQuery::new().property(omeka::Property::Slug, &slug),
+                        &omeka::FindQuery::new().property(omeka::Property::Slug, &slug),
                     )
                     .await?;
 
@@ -256,7 +254,8 @@ impl Resolver {
                             .client
                             .find(
                                 omeka::ResourceType::Item,
-                                omeka::FindQuery::new().property(omeka::Property::SlugAlias, &slug),
+                                &omeka::FindQuery::new()
+                                    .property(omeka::Property::SlugAlias, &slug),
                             )
                             .await?;
 
@@ -320,7 +319,7 @@ impl Resolver {
             .client
             .find(
                 omeka::ResourceType::Media,
-                omeka::FindQuery::new()
+                &omeka::FindQuery::new()
                     .property(omeka::Property::Filename, key.filename())
                     .filter(omeka::ResourceFilter::ItemId(internal_item_id)),
             )
@@ -351,7 +350,7 @@ impl Resolver {
                     .client
                     .find(
                         omeka::ResourceType::Media,
-                        omeka::FindQuery::new()
+                        &omeka::FindQuery::new()
                             .property(omeka::Property::FilenameAlias, key.filename())
                             .filter(omeka::ResourceFilter::ItemId(internal_item_id)),
                     )
@@ -416,75 +415,50 @@ impl Resolver {
     }
 
     pub async fn list_items(&self) -> anyhow::Result<Vec<Item>> {
-        // Make all three API calls concurrently.
-        let mut query = omeka::FindQuery::new();
-        query.has_property(omeka::Property::AceId);
-        query.has_property(omeka::Property::Slug);
-        let items_future = self.client.find(omeka::ResourceType::Item, &query);
+        // TODO: Can these API calls be made concurrent?
+        let (mut response, mut maybe_next_page) = self
+            .client
+            .find(
+                omeka::ResourceType::Item,
+                &omeka::FindQuery::new()
+                    .has_property(omeka::Property::AceId)
+                    .has_property(omeka::Property::Slug),
+            )
+            .await?;
 
-        let query = omeka::FindQuery::new();
-        let item_sets_future = self.client.find(omeka::ResourceType::ItemSet, &query);
+        let mut item_responses = response.json::<Vec<omeka::ItemResponse>>().await?;
 
-        let query = omeka::FindQuery::new();
-        let media_future = self.client.find(omeka::ResourceType::Media, &query);
-
-        let (
-            (mut items_response, mut items_maybe_next_page),
-            (mut item_sets_response, mut item_sets_maybe_next_page),
-            (mut media_response, mut media_maybe_next_page),
-        ) = tokio::try_join!(items_future, item_sets_future, media_future)?;
-
-        let mut items_responses = Vec::new();
-        let mut item_sets_responses = Vec::new();
-        let mut media_responses = Vec::new();
-
-        // Paginate the three API calls and collect their results, concurrently.
-        while items_maybe_next_page.is_some()
-            || item_sets_maybe_next_page.is_some()
-            || media_maybe_next_page.is_some()
-        {
-            let items_future = if let Some(next_page) = items_maybe_next_page {
-                items_responses.extend(items_response.json::<Vec<omeka::ItemResponse>>().await?);
-                self.client.next_page(next_page).boxed()
-            } else {
-                future::ready(Ok((items_response, None))).boxed()
-            };
-
-            let item_sets_future = if let Some(next_page) = item_sets_maybe_next_page {
-                item_sets_responses.extend(
-                    item_sets_response
-                        .json::<Vec<omeka::ItemSetResponse>>()
-                        .await?,
-                );
-                self.client.next_page(next_page).boxed()
-            } else {
-                future::ready(Ok((item_sets_response, None))).boxed()
-            };
-
-            let media_future = if let Some(next_page) = media_maybe_next_page {
-                media_responses.extend(media_response.json::<Vec<omeka::MediaResponse>>().await?);
-                self.client.next_page(next_page).boxed()
-            } else {
-                future::ready(Ok((media_response, None))).boxed()
-            };
-
-            (
-                (items_response, items_maybe_next_page),
-                (item_sets_response, item_sets_maybe_next_page),
-                (media_response, media_maybe_next_page),
-            ) = tokio::try_join!(items_future, item_sets_future, media_future)?;
+        while let Some(page) = maybe_next_page {
+            (response, maybe_next_page) = self.client.next_page(page).await?;
+            item_responses.extend(response.json::<Vec<omeka::ItemResponse>>().await?);
         }
 
-        items_responses.extend(items_response.json::<Vec<omeka::ItemResponse>>().await?);
-        item_sets_responses.extend(
-            item_sets_response
-                .json::<Vec<omeka::ItemSetResponse>>()
-                .await?,
-        );
-        media_responses.extend(media_response.json::<Vec<omeka::MediaResponse>>().await?);
+        let (mut response, mut maybe_next_page) = self
+            .client
+            .find(omeka::ResourceType::ItemSet, &omeka::FindQuery::new())
+            .await?;
 
-        let item_sets_responses_by_id: HashMap<omeka::InternalId, omeka::ItemSetResponse> =
-            item_sets_responses
+        let mut item_set_responses = response.json::<Vec<omeka::ItemSetResponse>>().await?;
+
+        while let Some(page) = maybe_next_page {
+            (response, maybe_next_page) = self.client.next_page(page).await?;
+            item_set_responses.extend(response.json::<Vec<omeka::ItemSetResponse>>().await?);
+        }
+
+        let (mut response, mut maybe_next_page) = self
+            .client
+            .find(omeka::ResourceType::Media, &omeka::FindQuery::new())
+            .await?;
+
+        let mut media_responses = response.json::<Vec<omeka::MediaResponse>>().await?;
+
+        while let Some(page) = maybe_next_page {
+            (response, maybe_next_page) = self.client.next_page(page).await?;
+            media_responses.extend(response.json::<Vec<omeka::MediaResponse>>().await?);
+        }
+
+        let item_set_responses_by_id: HashMap<omeka::InternalId, omeka::ItemSetResponse> =
+            item_set_responses
                 .into_iter()
                 .map(|item_set_response| (item_set_response.internal_id, item_set_response))
                 .collect();
@@ -495,7 +469,7 @@ impl Resolver {
                 .map(|media_response| (media_response.internal_id, media_response))
                 .collect();
 
-        Ok(items_responses
+        Ok(item_responses
             .into_iter()
             .filter_map(|item_response| {
                 let internal_id = item_response.internal_id;
@@ -558,7 +532,7 @@ impl Resolver {
                     .item_set
                     .into_iter()
                     .filter_map(|value| {
-                        let item_set = item_sets_responses_by_id.get(&value.id)?;
+                        let item_set = item_set_responses_by_id.get(&value.id)?;
 
                         Some(Collection {
                             id: item_set.internal_id,
