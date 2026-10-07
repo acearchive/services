@@ -65,6 +65,14 @@ async fn get_media(locator: MediaLocator) -> Result<impl IntoResponse, StatusCod
             }
             CanonicalUrl::AlreadyCanonical => {
                 if is_raw {
+                    Ok(proxy_response(
+                        client
+                            .get(location.omeka_url)
+                            .send()
+                            .await
+                            .map_err(map_error(StatusCode::BAD_GATEWAY))?,
+                    ))
+                } else {
                     let file_page_context = FilePageContext::from_location(&location)
                         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
 
@@ -78,14 +86,6 @@ async fn get_media(locator: MediaLocator) -> Result<impl IntoResponse, StatusCod
                                 .into_response()
                         })
                         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)
-                } else {
-                    Ok(proxy_response(
-                        client
-                            .get(location.omeka_url)
-                            .send()
-                            .await
-                            .map_err(map_error(StatusCode::BAD_GATEWAY))?,
-                    ))
                 }
             }
         },
