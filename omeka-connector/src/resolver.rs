@@ -494,6 +494,7 @@ impl Resolver {
                             title: media.maybe_one(omeka::Property::Title, |m| &m.title)?,
                             filename: filename.clone(),
                             media_type: media.media_type.clone(),
+                            lang: media.lang.clone(),
                             url: MediaLocator::Long {
                                 slug: slug.clone(),
                                 filename,

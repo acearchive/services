@@ -211,6 +211,9 @@ pub struct MediaResponse {
     #[serde(rename = "o:media_type")]
     pub media_type: String,
 
+    #[serde(rename = "o:lang")]
+    pub lang: Option<String>,
+
     #[serde(rename = "dcterms:title")]
     pub title: Vec<LiteralPropertyValue<String>>,
 

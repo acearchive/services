@@ -128,6 +128,7 @@ pub enum Property {
     Abstract,
     Created,
     Description,
+    Lang,
 }
 
 impl Property {
@@ -145,6 +146,7 @@ impl Property {
             Property::Abstract => "dcterms:abstract",
             Property::Description => "dcterms:description",
             Property::Created => "dcterms:created",
+            Property::Lang => "o:lang",
         }
     }
 }

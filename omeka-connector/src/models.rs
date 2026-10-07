@@ -9,6 +9,7 @@ pub struct File {
     pub title: String,
     pub filename: AceFilename,
     pub media_type: String,
+    pub lang: Option<String>,
     pub url: String,
 }
 
