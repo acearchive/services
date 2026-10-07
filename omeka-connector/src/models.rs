@@ -45,7 +45,6 @@ pub struct Item {
     pub slug: AceSlug,
     pub aliases: Vec<AceSlug>,
     pub title: String,
-    #[serde(rename = "abstract")]
     pub summary: String,
     pub description: Option<String>,
     pub from_year: u32,
