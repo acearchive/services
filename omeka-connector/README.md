@@ -65,6 +65,7 @@ parties to download.
 This service expects the following environment variables, which it will read
 from a `.env` file if one is available.
 
+- `BASE_DOMAIN`: The domain of the static site.
 - `OMEKA_URL`: The base URL of the Omeka instance, without the `/api/` path.
 - `FILES_URL`: The base URL that files are served from. If a reverse proxy sits
   in front of this service, this should point to that proxy.

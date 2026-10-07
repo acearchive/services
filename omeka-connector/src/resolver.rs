@@ -90,6 +90,14 @@ impl MediaLocator {
     }
 }
 
+fn page_url(slug: &omeka::AceSlug) -> anyhow::Result<reqwest::Url> {
+    Ok(reqwest::Url::parse(&format!(
+        "https://{}/artifacts/{}",
+        config::base_domain()?,
+        slug.as_ref()
+    ))?)
+}
+
 #[derive(Debug, Clone)]
 pub enum ItemKey {
     ById(omeka::AceId),
@@ -132,6 +140,11 @@ pub enum CanonicalUrl {
 pub struct MediaLocation {
     pub omeka_url: reqwest::Url,
     pub canonical_url: CanonicalUrl,
+    pub media_type: String,
+    pub filename: omeka::AceFilename,
+    pub page_url: reqwest::Url,
+    pub raw_url: reqwest::Url,
+    pub short_url: reqwest::Url,
 }
 
 fn expect_one<T>(
@@ -192,14 +205,13 @@ impl Resolver {
 
     /// Resolve Ace Archive identifiers to an Omeka internal item ID.
     ///
-    /// Given the ID or slug of an item in the collection, return its internal Omeka ID. If given a
-    /// slug that does not resolve, check it against slug aliases. If it resolves via an alias, also
-    /// return the canonical slug for that item.
+    /// Given the ID or slug of an item in the collection, return its internal Omeka ID, its Ace
+    /// Archive ID, and its canonical slug.
     async fn resolve_canonical_item(
         &self,
         key: ItemKey,
-    ) -> anyhow::Result<Option<(omeka::InternalId, Option<ItemKey>)>> {
-        let (internal_item_id, canonical_item_key) = match key {
+    ) -> anyhow::Result<Option<(omeka::InternalId, omeka::AceId, omeka::AceSlug)>> {
+        Ok(Some(match key {
             ItemKey::ById(id) => {
                 let (response, _) = self
                     .client
@@ -220,14 +232,25 @@ impl Resolver {
                 }
 
                 // If there is no matching item, we get an empty array, not a 404 Not Found.
-                let internal_id = match item_responses.first() {
-                    Some(item_response) => item_response.internal_id,
+                let item_response = match item_responses.first() {
+                    Some(item_response) => item_response,
                     None => {
                         return Ok(None);
                     }
                 };
 
-                (internal_id, None)
+                let canonical_slug = match expect_one(
+                    omeka::Property::Slug,
+                    item_response.slug.clone(),
+                    item_response.internal_id,
+                ) {
+                    Some(slug) => slug,
+                    None => {
+                        return Ok(None);
+                    }
+                };
+
+                (item_response.internal_id, id, canonical_slug)
             }
             ItemKey::BySlug(slug) => {
                 let (response, _) = self
@@ -249,7 +272,31 @@ impl Resolver {
                 }
 
                 match item_responses.first() {
-                    Some(item_response) => (item_response.internal_id, None),
+                    Some(item_response) => {
+                        let canonical_slug = match expect_one(
+                            omeka::Property::Slug,
+                            item_response.slug.clone(),
+                            item_response.internal_id,
+                        ) {
+                            Some(canonical_slug) => canonical_slug,
+                            None => {
+                                return Ok(None);
+                            }
+                        };
+
+                        let id = match expect_one(
+                            omeka::Property::AceId,
+                            item_response.id.clone(),
+                            item_response.internal_id,
+                        ) {
+                            Some(id) => id,
+                            None => {
+                                return Ok(None);
+                            }
+                        };
+
+                        (item_response.internal_id, id, canonical_slug)
+                    }
                     None => {
                         let (response, _) = self
                             .client
@@ -277,29 +324,33 @@ impl Resolver {
                             }
                         };
 
-                        let canonical_ace_slug = match item_response.slug.first() {
-                            Some(slug) => slug.value.clone(),
+                        let id = match expect_one(
+                            omeka::Property::AceId,
+                            item_response.id.clone(),
+                            item_response.internal_id,
+                        ) {
+                            Some(id) => id,
                             None => {
-                                log::warn!(
-                                    "Item with internal ID `{}` has no `{}` property.",
-                                    item_response.internal_id,
-                                    omeka::Property::Slug,
-                                );
-
                                 return Ok(None);
                             }
                         };
 
-                        (
+                        let canonical_slug = match expect_one(
+                            omeka::Property::Slug,
+                            item_response.slug.clone(),
                             item_response.internal_id,
-                            Some(ItemKey::BySlug(canonical_ace_slug)),
-                        )
+                        ) {
+                            Some(slug) => slug,
+                            None => {
+                                return Ok(None);
+                            }
+                        };
+
+                        (item_response.internal_id, id, canonical_slug)
                     }
                 }
             }
-        };
-
-        Ok(Some((internal_item_id, canonical_item_key)))
+        }))
     }
 
     /// Resolve Ace Archive identifiers to an Omeka media URL.
@@ -314,7 +365,7 @@ impl Resolver {
             return Ok(Some(cached_media_location));
         }
 
-        let (internal_item_id, canonical_item_key) =
+        let (internal_item_id, id, canonical_slug) =
             match self.resolve_canonical_item(key.clone().into()).await? {
                 Some(pair) => pair,
                 None => return Ok(None),
@@ -340,16 +391,42 @@ impl Resolver {
             );
         }
 
-        let (original_url, canonical_url) = match media_responses.first() {
-            Some(media_response) => (
-                reqwest::Url::parse(&media_response.original_url)?,
-                match canonical_item_key {
-                    Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(
-                        key.clone().with_key(canonical_item_key).to_url()?,
-                    ),
-                    None => CanonicalUrl::AlreadyCanonical,
-                },
-            ),
+        let media_location = match media_responses.first() {
+            Some(media_response) => {
+                let filename = match expect_one(
+                    omeka::Property::Filename,
+                    media_response.filename.clone(),
+                    media_response.internal_id,
+                ) {
+                    Some(filename) => filename,
+                    None => {
+                        return Ok(None);
+                    }
+                };
+
+                MediaLocation {
+                    omeka_url: reqwest::Url::parse(&media_response.original_url)?,
+                    canonical_url: match &key {
+                        MediaLocator::Long { slug, .. } if slug != &canonical_slug => {
+                            CanonicalUrl::ShouldRedirect(
+                                key.clone()
+                                    .with_key(ItemKey::BySlug(canonical_slug.clone()))
+                                    .to_url()?,
+                            )
+                        }
+                        _ => CanonicalUrl::AlreadyCanonical,
+                    },
+                    media_type: media_response.media_type.clone(),
+                    filename: filename.clone(),
+                    page_url: page_url(&canonical_slug)?,
+                    raw_url: MediaLocator::Raw {
+                        id: id.clone(),
+                        filename: filename.clone(),
+                    }
+                    .to_url()?,
+                    short_url: MediaLocator::Short { id, filename }.to_url()?,
+                }
+            }
             None => {
                 let (response, _) = self
                     .client
@@ -391,27 +468,43 @@ impl Resolver {
                     }
                 };
 
-                (
-                    reqwest::Url::parse(&media_response.original_url)?,
-                    match canonical_item_key {
-                        Some(canonical_item_key) => CanonicalUrl::ShouldRedirect(
+                MediaLocation {
+                    omeka_url: reqwest::Url::parse(&media_response.original_url)?,
+                    canonical_url: match &key {
+                        MediaLocator::Long { .. } => CanonicalUrl::ShouldRedirect(
                             key.clone()
-                                .with_key_and_filename(canonical_item_key, canonical_filename)
+                                .with_key_and_filename(
+                                    ItemKey::BySlug(canonical_slug.clone()),
+                                    canonical_filename.clone(),
+                                )
                                 .to_url()?,
                         ),
-                        None => CanonicalUrl::ShouldRedirect(
-                            key.clone()
-                                .with_key_and_filename(key.clone().into(), canonical_filename)
-                                .to_url()?,
-                        ),
+                        MediaLocator::Short { id, .. } | MediaLocator::Raw { id, .. } => {
+                            CanonicalUrl::ShouldRedirect(
+                                key.clone()
+                                    .with_key_and_filename(
+                                        ItemKey::ById(id.clone()),
+                                        canonical_filename.clone(),
+                                    )
+                                    .to_url()?,
+                            )
+                        }
                     },
-                )
+                    media_type: media_response.media_type.clone(),
+                    filename: canonical_filename.clone(),
+                    page_url: page_url(&canonical_slug)?,
+                    raw_url: MediaLocator::Raw {
+                        id: id.clone(),
+                        filename: canonical_filename.clone(),
+                    }
+                    .to_url()?,
+                    short_url: MediaLocator::Short {
+                        id,
+                        filename: canonical_filename,
+                    }
+                    .to_url()?,
+                }
             }
-        };
-
-        let media_location = MediaLocation {
-            omeka_url: original_url,
-            canonical_url,
         };
 
         cache::put_media_location(key, media_location.clone());

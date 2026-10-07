@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod assets;
 mod cache;
 pub mod config;
 mod logger;

@@ -1,0 +1,135 @@
+@font-face {
+  font-family: "Fira Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("Fira Sans"),
+    url("https://{{ base_domain }}/fonts/fira-sans/FiraSans-Regular-latin.woff2")
+      format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  background-color: #212121;
+  height: 100vh;
+}
+
+/* We need to keep the browser styles from overriding the button font. */
+body,
+button {
+  font-family:
+    Fira Sans,
+    Noto Sans,
+    sans-serif;
+  font-size: 1rem;
+}
+
+main {
+  display: flex;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+}
+
+button {
+  background-color: transparent;
+}
+
+a,
+button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #d3e5c1;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  color: #d3e5c1;
+}
+
+a:hover,
+button:hover {
+  background-color: #d3e5c1;
+  color: #212121;
+}
+
+:is(a, button) svg path {
+  stroke: #d3e5c1;
+}
+
+:is(a:hover, button:hover) svg path {
+  stroke: #212121;
+}
+
+:is(a, button) svg path {
+  stroke-width: 0.5px;
+}
+
+img,
+video {
+  display: block;
+  max-width: 100vw;
+  max-height: 100vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+footer {
+  position: absolute;
+  bottom: 1rem;
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+  justify-content: center;
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+
+#buttons,
+#toast {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  border-radius: 1rem;
+  background-color: #212121;
+  padding: 0.8rem;
+  margin-left: auto;
+  margin-right: auto;
+  filter: drop-shadow(2px 2px 2px black);
+}
+
+#toast {
+  color: #dee2e6;
+}
+
+#toast[hidden] {
+  display: none;
+}
+
+.toast-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (width < 40rem) {
+  a,
+  button {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  svg {
+    transform: scale(0.9);
+  }
+}

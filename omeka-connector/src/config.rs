@@ -1,6 +1,7 @@
 use std::{env, path::PathBuf, sync::OnceLock};
 
 struct Config {
+    base_domain: String,
     omeka_url: reqwest::Url,
     files_url: reqwest::Url,
     port: u16,
@@ -13,6 +14,7 @@ pub fn init_config() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
     let config = Config {
+        base_domain: env::var("BASE_DOMAIN")?,
         omeka_url: reqwest::Url::parse(&env::var("OMEKA_URL")?)?,
         files_url: reqwest::Url::parse(&env::var("FILES_URL")?)?,
         port: env::var("PORT")?.parse::<u16>()?,
@@ -24,6 +26,14 @@ pub fn init_config() -> anyhow::Result<()> {
         .map_err(|_| anyhow::anyhow!("Config already initialized."))?;
 
     Ok(())
+}
+
+pub fn base_domain() -> anyhow::Result<String> {
+    Ok(CONFIG
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
+        .base_domain
+        .clone())
 }
 
 pub fn omeka_url() -> anyhow::Result<reqwest::Url> {
