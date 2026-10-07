@@ -217,7 +217,7 @@ impl Resolver {
 
                 if item_responses.len() > 1 {
                     log::warn!(
-                        "Multiple items found with `{}` property value `{}`. Using the first one.",
+                        "Multiple items found with property `{}` of `{}`. Using the first one.",
                         omeka::Property::Slug,
                         slug,
                     );
@@ -245,7 +245,7 @@ impl Resolver {
 
                         if item_responses.len() > 1 {
                             log::warn!(
-                                "Multiple items found with `{}` property value `{}`. Using the first one.",
+                                "Multiple items found with property `{}` of `{}`. Using the first one.",
                                 omeka::Property::SlugAlias,
                                 slug,
                             );
@@ -293,7 +293,7 @@ impl Resolver {
 
         if media_responses.len() > 1 {
             log::warn!(
-                "Multiple items found with `{}` property value `{}`. Using the first one.",
+                "Multiple media found with property `{}` of `{}`. Using the first one.",
                 omeka::Property::Filename,
                 key.filename(),
             );
@@ -342,7 +342,7 @@ impl Resolver {
 
                 if media_responses.len() > 1 {
                     log::warn!(
-                        "Multiple items found with `{}` property value `{}`. Using the first one.",
+                        "Multiple media found with property `{}` of `{}`. Using the first one.",
                         omeka::Property::FilenameAlias,
                         key.filename(),
                     );
