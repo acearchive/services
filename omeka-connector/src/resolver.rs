@@ -31,40 +31,6 @@ impl MediaLocator {
         }
     }
 
-    pub fn with_key(self, item_key: ItemKey) -> Self {
-        match self {
-            MediaLocator::Long { filename, .. } => MediaLocator::Long {
-                slug: item_key.unwrap_slug(),
-                filename,
-            },
-            MediaLocator::Short { filename, .. } => MediaLocator::Short {
-                id: item_key.unwrap_id(),
-                filename,
-            },
-            MediaLocator::Raw { filename, .. } => MediaLocator::Raw {
-                id: item_key.unwrap_id(),
-                filename,
-            },
-        }
-    }
-
-    pub fn with_key_and_filename(self, item_key: ItemKey, filename: omeka::AceFilename) -> Self {
-        match self {
-            MediaLocator::Long { .. } => MediaLocator::Long {
-                slug: item_key.unwrap_slug(),
-                filename,
-            },
-            MediaLocator::Short { .. } => MediaLocator::Short {
-                id: item_key.unwrap_id(),
-                filename,
-            },
-            MediaLocator::Raw { .. } => MediaLocator::Raw {
-                id: item_key.unwrap_id(),
-                filename,
-            },
-        }
-    }
-
     pub fn to_url(&self) -> anyhow::Result<reqwest::Url> {
         let mut url = config::files_url()?;
 
@@ -113,22 +79,6 @@ impl From<omeka::AceId> for ItemKey {
 impl From<omeka::AceSlug> for ItemKey {
     fn from(slug: omeka::AceSlug) -> Self {
         ItemKey::BySlug(slug)
-    }
-}
-
-impl ItemKey {
-    pub fn unwrap_id(self) -> omeka::AceId {
-        match self {
-            ItemKey::ById(id) => id,
-            ItemKey::BySlug(_) => panic!("Exepcted this item key to have a slug."),
-        }
-    }
-
-    pub fn unwrap_slug(self) -> omeka::AceSlug {
-        match self {
-            ItemKey::ById(_) => panic!("Expected this item key to have an ID."),
-            ItemKey::BySlug(slug) => slug,
-        }
     }
 }
 
@@ -303,11 +253,20 @@ impl Resolver {
                 canonical_url: match &key {
                     MediaLocator::Long { slug, .. } if slug != &canonical_slug => {
                         CanonicalUrl::ShouldRedirect(
-                            key.clone()
-                                .with_key(canonical_slug.clone().into())
-                                .to_url()?,
+                            MediaLocator::Long {
+                                slug: canonical_slug.clone(),
+                                filename: key.filename().clone(),
+                            }
+                            .to_url()?,
                         )
                     }
+                    MediaLocator::Short { .. } => CanonicalUrl::ShouldRedirect(
+                        MediaLocator::Long {
+                            slug: canonical_slug.clone(),
+                            filename: key.filename().clone(),
+                        }
+                        .to_url()?,
+                    ),
                     _ => CanonicalUrl::AlreadyCanonical,
                 },
                 media_type: media_response.media_type.clone(),
@@ -353,25 +312,22 @@ impl Resolver {
                 MediaLocation {
                     omeka_url: reqwest::Url::parse(&media_response.original_url)?,
                     canonical_url: match &key {
-                        MediaLocator::Long { .. } => CanonicalUrl::ShouldRedirect(
-                            key.clone()
-                                .with_key_and_filename(
-                                    canonical_slug.clone().into(),
-                                    canonical_filename.clone(),
-                                )
-                                .to_url()?,
-                        ),
-                        MediaLocator::Short { id, .. } | MediaLocator::Raw { id, .. } => {
+                        MediaLocator::Long { .. } | MediaLocator::Short { .. } => {
                             CanonicalUrl::ShouldRedirect(
-                                key.clone()
-                                    .with_key_and_filename(
-                                        id.clone().into(),
-                                        canonical_filename.clone(),
-                                    )
-                                    .clone()
-                                    .to_url()?,
+                                MediaLocator::Long {
+                                    slug: canonical_slug.clone(),
+                                    filename: canonical_filename.clone(),
+                                }
+                                .to_url()?,
                             )
                         }
+                        MediaLocator::Raw { id, .. } => CanonicalUrl::ShouldRedirect(
+                            MediaLocator::Raw {
+                                id: id.clone(),
+                                filename: canonical_filename.clone(),
+                            }
+                            .to_url()?,
+                        ),
                     },
                     media_type: media_response.media_type.clone(),
                     filename: canonical_filename.clone(),
