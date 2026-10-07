@@ -1,8 +1,6 @@
 use serde::Serialize;
 
-use crate::omeka::InternalId;
-
-use super::omeka::{AceFilename, AceId, AceSlug, ExternalId};
+use super::omeka::{AceFilename, AceId, AceSlug};
 
 #[derive(Debug, Serialize)]
 pub struct File {
@@ -20,27 +18,6 @@ pub struct Link {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Person {
-    pub id: InternalId,
-    pub title: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Identity {
-    pub id: ExternalId,
-    pub title: String,
-    // TODO: Pull a description from Homosaurus.
-    // pub description: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Collection {
-    pub id: InternalId,
-    pub title: String,
-    pub description: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
 pub struct Item {
     pub id: AceId,
     pub slug: AceSlug,
@@ -53,7 +30,7 @@ pub struct Item {
     pub decades: Vec<u32>,
     pub files: Vec<File>,
     pub links: Vec<Link>,
-    pub people: Vec<Person>,
-    pub identities: Vec<Identity>,
-    pub collections: Vec<Collection>,
+    pub people: Vec<String>,
+    pub identities: Vec<String>,
+    pub collections: Vec<String>,
 }

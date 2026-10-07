@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     cache, config,
-    models::{Collection, File, Identity, Item, Link, Person},
+    models::{File, Item, Link},
     omeka,
 };
 
@@ -442,10 +442,7 @@ impl Resolver {
                 let people = item_response
                     .creator
                     .into_iter()
-                    .map(|value| Person {
-                        id: value.id,
-                        title: value.title,
-                    })
+                    .map(|value| value.title)
                     .collect();
                 let links = item_response
                     .relation
@@ -463,23 +460,15 @@ impl Resolver {
                 let identities = item_response
                     .subject
                     .into_iter()
-                    .map(|value| Identity {
-                        id: value.url.into(),
-                        title: value.title,
-                    })
+                    .map(|value| value.title)
                     .collect();
                 let collections = item_response
                     .item_set
                     .into_iter()
                     .filter_map(|value| {
-                        let item_set = item_set_responses_by_id.get(&value.id)?;
-
-                        Some(Collection {
-                            id: item_set.internal_id,
-                            title: item_set.maybe_one(omeka::Property::Title, |i| &i.title)?,
-                            description: item_set
-                                .maybe_one(omeka::Property::Description, |i| &i.description),
-                        })
+                        item_set_responses_by_id
+                            .get(&value.id)?
+                            .maybe_one(omeka::Property::Title, |i| &i.title)
                     })
                     .collect();
                 let files = item_response
