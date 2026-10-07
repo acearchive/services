@@ -26,6 +26,18 @@ corresponding file in Omeka.
 /media/r/<ARTIFACT_ID>/<FILENAME>
 ```
 
+From top to bottom, these patterns are referred to as the "long" form, "short"
+form, and "raw" form. The "short" URL redirects to the "long" one.
+
+When using the "long" form, the file is embedded in an HTML document which
+shows three buttons at the bottom of the viewport:
+
+1. A link back to the corresponding page on Ace Archive.
+2. A link to the "raw" URL.
+3. A button to copy the "short" URL to the clipboard.
+
+When using the "raw" form, the raw file is served instead.
+
 This service is intended to be deployed behind another reverse proxy so it can
 serve files from `files.acearchive.lgbt` instead of the domain Omkea is hosted
 under. The following are examples of actual file URLs.
