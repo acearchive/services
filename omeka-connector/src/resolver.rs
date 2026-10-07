@@ -352,7 +352,7 @@ impl Resolver {
     }
 
     /// Return metadata about every item in the collection.
-    pub async fn list_items(&self) -> anyhow::Result<Vec<Item>> {
+    pub async fn list_all_items(&self) -> anyhow::Result<Vec<Item>> {
         // Given the size of the archive, paginating through all items, item sets, and media and
         // collecting them in memory is going to be much faster than the alternative.
         //

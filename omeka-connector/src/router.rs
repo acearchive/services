@@ -24,7 +24,7 @@ pub fn new() -> Router {
         .route("/media/artifacts/{slug}/{filename}", get(get_media_long))
         .route("/media/a/{id}/{filename}", get(get_media_short))
         .route("/media/r/{id}/{filename}", get(get_media_raw))
-        .route("/items", get(get_items))
+        .route("/hugo-items", get(get_hugo_items))
         .route("/assets/style.css", get(get_asset_style))
         .route("/assets/script.js", get(get_asset_script))
 }
@@ -121,7 +121,7 @@ async fn get_media_raw(
 }
 
 #[axum::debug_handler]
-async fn get_items() -> Result<Json<Vec<Item>>, StatusCode> {
+async fn get_hugo_items() -> Result<Json<Vec<Item>>, StatusCode> {
     let client = reqwest::Client::new();
     let omeka_client = omeka::Client::from_config(client.clone())
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
@@ -129,7 +129,7 @@ async fn get_items() -> Result<Json<Vec<Item>>, StatusCode> {
 
     Ok(Json(
         resolver
-            .list_items()
+            .list_all_items()
             .await
             .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
     ))
