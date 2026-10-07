@@ -56,13 +56,10 @@ async fn get_media(locator: MediaLocator) -> Result<impl IntoResponse, StatusCod
     let omeka_client = omeka::Client::from_config(client.clone())
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
     let resolver = Resolver::new(omeka_client);
-    let location = resolver
-        .resolve_media(locator)
-        .await
-        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+    let location = resolver.resolve_media(locator).await;
 
     match location {
-        Some(location) => match location.canonical_url {
+        Ok(location) => match location.canonical_url {
             CanonicalUrl::ShouldRedirect(url) => {
                 Ok(Redirect::permanent(url.as_str()).into_response())
             }
@@ -92,7 +89,8 @@ async fn get_media(locator: MediaLocator) -> Result<impl IntoResponse, StatusCod
                 }
             }
         },
-        None => Err(StatusCode::NOT_FOUND),
+        Err(err) if err.downcast_ref::<omeka::SkipError>().is_some() => Err(StatusCode::NOT_FOUND),
+        Err(err) => Err(map_error(StatusCode::INTERNAL_SERVER_ERROR)(err)),
     }
 }
 

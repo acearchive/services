@@ -104,6 +104,18 @@ pub enum ItemKey {
     BySlug(omeka::AceSlug),
 }
 
+impl From<omeka::AceId> for ItemKey {
+    fn from(id: omeka::AceId) -> Self {
+        ItemKey::ById(id)
+    }
+}
+
+impl From<omeka::AceSlug> for ItemKey {
+    fn from(slug: omeka::AceSlug) -> Self {
+        ItemKey::BySlug(slug)
+    }
+}
+
 impl ItemKey {
     pub fn unwrap_id(self) -> omeka::AceId {
         match self {
@@ -123,9 +135,8 @@ impl ItemKey {
 impl From<MediaLocator> for ItemKey {
     fn from(locator: MediaLocator) -> Self {
         match locator {
-            MediaLocator::Long { slug, .. } => ItemKey::BySlug(slug),
-            MediaLocator::Short { id, .. } => ItemKey::ById(id),
-            MediaLocator::Raw { id, .. } => ItemKey::ById(id),
+            MediaLocator::Long { slug, .. } => slug.into(),
+            MediaLocator::Short { id, .. } | MediaLocator::Raw { id, .. } => id.into(),
         }
     }
 }
@@ -164,8 +175,8 @@ impl Resolver {
     async fn resolve_canonical_item(
         &self,
         key: ItemKey,
-    ) -> anyhow::Result<Option<(omeka::InternalId, omeka::AceId, omeka::AceSlug)>> {
-        Ok(Some(match key {
+    ) -> anyhow::Result<(omeka::InternalId, omeka::AceId, omeka::AceSlug)> {
+        Ok(match key {
             ItemKey::ById(id) => {
                 let (response, _) = self
                     .client
@@ -179,19 +190,14 @@ impl Resolver {
 
                 if item_responses.len() > 1 {
                     log::warn!(
-                        "Multiple items found with `{}` property value `{}`. Using the first one.",
+                        "Multiple items found with property `{}` of `{}`. Using the first one.",
                         omeka::Property::AceId,
                         id,
                     );
                 }
 
                 // If there is no matching item, we get an empty array, not a 404 Not Found.
-                let item_response = match item_responses.first() {
-                    Some(item_response) => item_response,
-                    None => {
-                        return Ok(None);
-                    }
-                };
+                let item_response = item_responses.first().ok_or(omeka::SkipError)?;
 
                 let canonical_slug =
                     item_response.expect_one(omeka::Property::Slug, |i| &i.slug)?;
@@ -245,12 +251,7 @@ impl Resolver {
                             );
                         }
 
-                        let item_response = match item_responses.first() {
-                            Some(item_response) => item_response,
-                            None => {
-                                return Ok(None);
-                            }
-                        };
+                        let item_response = item_responses.first().ok_or(omeka::SkipError)?;
 
                         let id = item_response.expect_one(omeka::Property::AceId, |i| &i.id)?;
                         let canonical_slug =
@@ -260,7 +261,7 @@ impl Resolver {
                     }
                 }
             }
-        }))
+        })
     }
 
     /// Resolve Ace Archive identifiers to an Omeka media URL.
@@ -270,16 +271,13 @@ impl Resolver {
     ///
     /// If the media resolves via a slug alias and/or a filename alias, also return the file's
     /// canonical URL.
-    pub async fn resolve_media(&self, key: MediaLocator) -> anyhow::Result<Option<MediaLocation>> {
+    pub async fn resolve_media(&self, key: MediaLocator) -> anyhow::Result<MediaLocation> {
         if let Some(cached_media_location) = cache::get_media_location(&key) {
-            return Ok(Some(cached_media_location));
+            return Ok(cached_media_location);
         }
 
         let (internal_item_id, id, canonical_slug) =
-            match self.resolve_canonical_item(key.clone().into()).await? {
-                Some(pair) => pair,
-                None => return Ok(None),
-            };
+            self.resolve_canonical_item(key.clone().into()).await?;
 
         let (response, _) = self
             .client
@@ -312,7 +310,7 @@ impl Resolver {
                         MediaLocator::Long { slug, .. } if slug != &canonical_slug => {
                             CanonicalUrl::ShouldRedirect(
                                 key.clone()
-                                    .with_key(ItemKey::BySlug(canonical_slug.clone()))
+                                    .with_key(canonical_slug.clone().into())
                                     .to_url()?,
                             )
                         }
@@ -350,25 +348,10 @@ impl Resolver {
                     );
                 }
 
-                let media_response = match media_responses.first() {
-                    Some(media_response) => media_response,
-                    None => {
-                        return Ok(None);
-                    }
-                };
+                let media_response = media_responses.first().ok_or(omeka::SkipError)?;
 
-                let canonical_filename = match media_response.filename.first() {
-                    Some(filename) => filename.value.clone(),
-                    None => {
-                        log::warn!(
-                            "Media with URL `{}` has no `{}` property.",
-                            key.to_url()?,
-                            omeka::Property::Filename,
-                        );
-
-                        return Ok(None);
-                    }
-                };
+                let canonical_filename =
+                    media_response.expect_one(omeka::Property::Filename, |m| &m.filename)?;
 
                 MediaLocation {
                     omeka_url: reqwest::Url::parse(&media_response.original_url)?,
@@ -376,7 +359,7 @@ impl Resolver {
                         MediaLocator::Long { .. } => CanonicalUrl::ShouldRedirect(
                             key.clone()
                                 .with_key_and_filename(
-                                    ItemKey::BySlug(canonical_slug.clone()),
+                                    canonical_slug.clone().into(),
                                     canonical_filename.clone(),
                                 )
                                 .to_url()?,
@@ -385,7 +368,7 @@ impl Resolver {
                             CanonicalUrl::ShouldRedirect(
                                 key.clone()
                                     .with_key_and_filename(
-                                        ItemKey::ById(id.clone()),
+                                        id.clone().into(),
                                         canonical_filename.clone(),
                                     )
                                     .to_url()?,
@@ -411,7 +394,7 @@ impl Resolver {
 
         cache::put_media_location(key, media_location.clone());
 
-        Ok(Some(media_location))
+        Ok(media_location)
     }
 
     /// Return metadata about every item in the collection.

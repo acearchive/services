@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 use super::property::{AceFilename, AceId, AceSlug, InternalId, Property, ResourceType};
 
+/// An error signaling that a resource should be skipped because it is missing required data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SkipError;
 
@@ -19,7 +20,7 @@ fn expect_one<T>(
     resource_type: ResourceType,
     internal_id: InternalId,
     property: Property,
-    values: &Vec<LiteralPropertyValue<T>>,
+    values: &[LiteralPropertyValue<T>],
 ) -> anyhow::Result<T>
 where
     T: fmt::Display + Clone,
@@ -37,19 +38,19 @@ where
             "{} with internal ID `{}` has multiple values for property `{}`. Using the first one: {}",
             resource_type_label,
             internal_id,
-            &property,
+            property,
             value.value,
         );
     }
 
-    match values.into_iter().next().map(|value| value.value.clone()) {
+    match values.iter().next().map(|value| value.value.clone()) {
         Some(value) => Ok(value),
         None => {
             log::warn!(
                 "{} with internal ID `{}` is missing required property `{}`.",
                 resource_type_label,
                 internal_id,
-                &property
+                property
             );
 
             Err(SkipError.into())
@@ -61,7 +62,7 @@ fn maybe_one<T>(
     resource_type: ResourceType,
     internal_id: InternalId,
     property: Property,
-    values: &Vec<LiteralPropertyValue<T>>,
+    values: &[LiteralPropertyValue<T>],
 ) -> Option<T>
 where
     T: fmt::Display + Clone,
@@ -79,7 +80,7 @@ where
             "{} with internal ID `{}` has multiple values for property `{}`. Using the first one: {}",
             resource_type_label,
             internal_id,
-            &property,
+            property,
             value.value,
         );
     }
@@ -91,7 +92,6 @@ where
 pub struct LiteralPropertyValue<T> {
     #[serde(rename = "@value")]
     pub value: T,
-    pub property_label: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -164,7 +164,7 @@ impl ItemResponse {
     pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>
     where
         T: fmt::Display + Clone,
-        F: FnOnce(&ItemResponse) -> &Vec<LiteralPropertyValue<T>>,
+        F: FnOnce(&ItemResponse) -> &[LiteralPropertyValue<T>],
     {
         expect_one(ResourceType::Item, self.internal_id, property, f(self))
     }
@@ -172,7 +172,7 @@ impl ItemResponse {
     pub fn maybe_one<T, F>(&self, property: Property, f: F) -> Option<T>
     where
         T: fmt::Display + Clone,
-        F: FnOnce(&ItemResponse) -> &Vec<LiteralPropertyValue<T>>,
+        F: FnOnce(&ItemResponse) -> &[LiteralPropertyValue<T>],
     {
         maybe_one(ResourceType::Item, self.internal_id, property, f(self))
     }
@@ -191,18 +191,10 @@ pub struct ItemSetResponse {
 }
 
 impl ItemSetResponse {
-    pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>
-    where
-        T: fmt::Display + Clone,
-        F: FnOnce(&ItemSetResponse) -> &Vec<LiteralPropertyValue<T>>,
-    {
-        expect_one(ResourceType::ItemSet, self.internal_id, property, f(self))
-    }
-
     pub fn maybe_one<T, F>(&self, property: Property, f: F) -> Option<T>
     where
         T: fmt::Display + Clone,
-        F: FnOnce(&ItemSetResponse) -> &Vec<LiteralPropertyValue<T>>,
+        F: FnOnce(&ItemSetResponse) -> &[LiteralPropertyValue<T>],
     {
         maybe_one(ResourceType::ItemSet, self.internal_id, property, f(self))
     }
@@ -230,7 +222,7 @@ impl MediaResponse {
     pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>
     where
         T: fmt::Display + Clone,
-        F: FnOnce(&MediaResponse) -> &Vec<LiteralPropertyValue<T>>,
+        F: FnOnce(&MediaResponse) -> &[LiteralPropertyValue<T>],
     {
         expect_one(ResourceType::Media, self.internal_id, property, f(self))
     }
@@ -238,7 +230,7 @@ impl MediaResponse {
     pub fn maybe_one<T, F>(&self, property: Property, f: F) -> Option<T>
     where
         T: fmt::Display + Clone,
-        F: FnOnce(&MediaResponse) -> &Vec<LiteralPropertyValue<T>>,
+        F: FnOnce(&MediaResponse) -> &[LiteralPropertyValue<T>],
     {
         maybe_one(ResourceType::Media, self.internal_id, property, f(self))
     }
