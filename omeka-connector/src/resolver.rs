@@ -460,12 +460,21 @@ impl Resolver {
             .into_iter()
             .filter_map(|item_response| {
                 // Required properties.
-                let id = item_response.maybe_one(omeka::Property::AceId, |i| &i.id)?;
-                let slug = item_response.maybe_one(omeka::Property::Slug, |i| &i.slug)?;
-                let title = item_response.maybe_one(omeka::Property::Title, |i| &i.title)?;
-                let summary = item_response.maybe_one(omeka::Property::Abstract, |i| &i.summary)?;
+                let id = item_response
+                    .expect_one(omeka::Property::AceId, |i| &i.id)
+                    .ok()?;
+                let slug = item_response
+                    .expect_one(omeka::Property::Slug, |i| &i.slug)
+                    .ok()?;
+                let title = item_response
+                    .expect_one(omeka::Property::Title, |i| &i.title)
+                    .ok()?;
+                let summary = item_response
+                    .expect_one(omeka::Property::Abstract, |i| &i.summary)
+                    .ok()?;
                 let (from_year, to_year) = item_response
-                    .maybe_one(omeka::Property::Created, |i| &i.created)?
+                    .expect_one(omeka::Property::Created, |i| &i.created)
+                    .ok()?
                     .split_once('/')
                     .map(|(from, to)| (from.parse::<u32>().ok(), to.parse::<u32>().ok()))
                     .unwrap_or((None, None));
