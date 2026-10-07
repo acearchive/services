@@ -128,6 +128,11 @@ pub enum Property {
     Abstract,
     Created,
     Description,
+    Creator,
+    Subject,
+    Relation,
+    Media,
+    ItemSet,
 }
 
 impl Property {
@@ -145,6 +150,11 @@ impl Property {
             Property::Abstract => "dcterms:abstract",
             Property::Description => "dcterms:description",
             Property::Created => "dcterms:created",
+            Property::Creator => "dcterms:creator",
+            Property::Subject => "dcterms:subject",
+            Property::Relation => "dcterms:relation",
+            Property::Media => "o:media",
+            Property::ItemSet => "o:item_set",
         }
     }
 }

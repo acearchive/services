@@ -147,52 +147,6 @@ pub struct MediaLocation {
     pub short_url: reqwest::Url,
 }
 
-fn expect_one<T>(
-    property: omeka::Property,
-    values: Vec<omeka::LiteralPropertyValue<T>>,
-    internal_id: omeka::InternalId,
-) -> Option<T> {
-    if values.len() > 1 {
-        log::info!(
-            "Resource with internal ID `{}` has multiple values for property `{}`. Using the first one.",
-            internal_id,
-            property,
-        );
-    }
-
-    match values.into_iter().next().map(|value| value.value) {
-        Some(value) => Some(value),
-        None => {
-            log::info!(
-                "Resource with internal ID `{}` is missing required property `{}`.",
-                internal_id,
-                property,
-            );
-
-            None
-        }
-    }
-}
-
-fn maybe_one<T>(
-    property: omeka::Property,
-    values: Vec<omeka::LiteralPropertyValue<T>>,
-    internal_id: omeka::InternalId,
-) -> Option<T>
-where
-    T: Clone,
-{
-    if values.len() > 1 {
-        log::info!(
-            "Resource with internal ID `{}` has multiple values for property `{}`. Using the first one.",
-            internal_id,
-            property,
-        );
-    }
-
-    values.first().map(|value| value.value.clone())
-}
-
 #[derive(Debug)]
 pub struct Resolver {
     client: omeka::Client,
@@ -239,16 +193,8 @@ impl Resolver {
                     }
                 };
 
-                let canonical_slug = match expect_one(
-                    omeka::Property::Slug,
-                    item_response.slug.clone(),
-                    item_response.internal_id,
-                ) {
-                    Some(slug) => slug,
-                    None => {
-                        return Ok(None);
-                    }
-                };
+                let canonical_slug =
+                    item_response.expect_one(omeka::Property::Slug, |i| &i.slug)?;
 
                 (item_response.internal_id, id, canonical_slug)
             }
@@ -273,27 +219,9 @@ impl Resolver {
 
                 match item_responses.first() {
                     Some(item_response) => {
-                        let canonical_slug = match expect_one(
-                            omeka::Property::Slug,
-                            item_response.slug.clone(),
-                            item_response.internal_id,
-                        ) {
-                            Some(canonical_slug) => canonical_slug,
-                            None => {
-                                return Ok(None);
-                            }
-                        };
-
-                        let id = match expect_one(
-                            omeka::Property::AceId,
-                            item_response.id.clone(),
-                            item_response.internal_id,
-                        ) {
-                            Some(id) => id,
-                            None => {
-                                return Ok(None);
-                            }
-                        };
+                        let canonical_slug =
+                            item_response.expect_one(omeka::Property::Slug, |i| &i.slug)?;
+                        let id = item_response.expect_one(omeka::Property::AceId, |i| &i.id)?;
 
                         (item_response.internal_id, id, canonical_slug)
                     }
@@ -324,27 +252,9 @@ impl Resolver {
                             }
                         };
 
-                        let id = match expect_one(
-                            omeka::Property::AceId,
-                            item_response.id.clone(),
-                            item_response.internal_id,
-                        ) {
-                            Some(id) => id,
-                            None => {
-                                return Ok(None);
-                            }
-                        };
-
-                        let canonical_slug = match expect_one(
-                            omeka::Property::Slug,
-                            item_response.slug.clone(),
-                            item_response.internal_id,
-                        ) {
-                            Some(slug) => slug,
-                            None => {
-                                return Ok(None);
-                            }
-                        };
+                        let id = item_response.expect_one(omeka::Property::AceId, |i| &i.id)?;
+                        let canonical_slug =
+                            item_response.expect_one(omeka::Property::Slug, |i| &i.slug)?;
 
                         (item_response.internal_id, id, canonical_slug)
                     }
@@ -393,16 +303,8 @@ impl Resolver {
 
         let media_location = match media_responses.first() {
             Some(media_response) => {
-                let filename = match expect_one(
-                    omeka::Property::Filename,
-                    media_response.filename.clone(),
-                    media_response.internal_id,
-                ) {
-                    Some(filename) => filename,
-                    None => {
-                        return Ok(None);
-                    }
-                };
+                let filename =
+                    media_response.expect_one(omeka::Property::Filename, |m| &m.filename)?;
 
                 MediaLocation {
                     omeka_url: reqwest::Url::parse(&media_response.original_url)?,
@@ -574,30 +476,21 @@ impl Resolver {
         Ok(item_responses
             .into_iter()
             .filter_map(|item_response| {
-                let internal_id = item_response.internal_id;
-
                 // Required properties.
-                let id = expect_one(omeka::Property::AceId, item_response.id, internal_id)?;
-                let slug = expect_one(omeka::Property::Slug, item_response.slug, internal_id)?;
-                let title = expect_one(omeka::Property::Title, item_response.title, internal_id)?;
-                let summary = expect_one(
-                    omeka::Property::Abstract,
-                    item_response.summary,
-                    internal_id,
-                )?;
-                let (from_year, to_year) =
-                    expect_one(omeka::Property::Created, item_response.created, internal_id)?
-                        .split_once('/')
-                        .map(|(from, to)| (from.parse::<u32>().ok(), to.parse::<u32>().ok()))
-                        .unwrap_or((None, None));
+                let id = item_response.maybe_one(omeka::Property::AceId, |i| &i.id)?;
+                let slug = item_response.maybe_one(omeka::Property::Slug, |i| &i.slug)?;
+                let title = item_response.maybe_one(omeka::Property::Title, |i| &i.title)?;
+                let summary = item_response.maybe_one(omeka::Property::Abstract, |i| &i.summary)?;
+                let (from_year, to_year) = item_response
+                    .maybe_one(omeka::Property::Created, |i| &i.created)?
+                    .split_once('/')
+                    .map(|(from, to)| (from.parse::<u32>().ok(), to.parse::<u32>().ok()))
+                    .unwrap_or((None, None));
                 let from_year = from_year?;
 
                 // Optional single-value properties.
-                let description = maybe_one(
-                    omeka::Property::Description,
-                    item_response.description,
-                    internal_id,
-                );
+                let description =
+                    item_response.maybe_one(omeka::Property::Description, |i| &i.description);
 
                 // Multi-value properties.
                 let people = item_response
@@ -637,16 +530,9 @@ impl Resolver {
 
                         Some(Collection {
                             id: item_set.internal_id,
-                            title: expect_one(
-                                omeka::Property::Title,
-                                item_set.title.clone(),
-                                item_set.internal_id,
-                            )?,
-                            description: maybe_one(
-                                omeka::Property::Description,
-                                item_set.description.clone(),
-                                item_set.internal_id,
-                            ),
+                            title: item_set.maybe_one(omeka::Property::Title, |i| &i.title)?,
+                            description: item_set
+                                .maybe_one(omeka::Property::Description, |i| &i.description),
                         })
                     })
                     .collect();
@@ -655,18 +541,11 @@ impl Resolver {
                     .into_iter()
                     .filter_map(|value| {
                         let media = media_responses_by_id.get(&value.id)?;
-                        let filename = expect_one(
-                            omeka::Property::Filename,
-                            media.filename.clone(),
-                            media.internal_id,
-                        )?;
+                        let filename =
+                            media.maybe_one(omeka::Property::Filename, |m| &m.filename)?;
 
                         Some(File {
-                            title: expect_one(
-                                omeka::Property::Title,
-                                media.title.clone(),
-                                media.internal_id,
-                            )?,
+                            title: media.maybe_one(omeka::Property::Title, |m| &m.title)?,
                             filename: filename.clone(),
                             media_type: media.media_type.clone(),
                             url: MediaLocator::Long {
