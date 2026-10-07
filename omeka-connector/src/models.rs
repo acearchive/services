@@ -34,3 +34,21 @@ pub struct Item {
     pub identities: Vec<String>,
     pub collections: Vec<String>,
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TagKind {
+    Collection,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Tag {
+    pub name: String,
+    pub kind: TagKind,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CollectionMetadata {
+    pub tags: Vec<Tag>,
+}

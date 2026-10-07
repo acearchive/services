@@ -21,22 +21,6 @@ impl FromStr for InternalId {
     }
 }
 
-// An ID from some external system, like Homosaurus.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub struct ExternalId(String);
-
-impl From<String> for ExternalId {
-    fn from(s: String) -> Self {
-        ExternalId(s)
-    }
-}
-
-impl fmt::Display for ExternalId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct AceId(String);
 
@@ -128,7 +112,6 @@ pub enum Property {
     Abstract,
     Created,
     Description,
-    Lang,
 }
 
 impl Property {
@@ -146,7 +129,6 @@ impl Property {
             Property::Abstract => "dcterms:abstract",
             Property::Description => "dcterms:description",
             Property::Created => "dcterms:created",
-            Property::Lang => "o:lang",
         }
     }
 }

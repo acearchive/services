@@ -13,7 +13,7 @@ use super::{
     assets::render_css,
     assets::{FilePage, FilePageContext},
     config,
-    models::Item,
+    models::{CollectionMetadata, Item},
     omeka,
     resolver::{CanonicalUrl, MediaLocator, Resolver},
 };
@@ -25,6 +25,7 @@ pub fn new() -> Router {
         .route("/media/a/{id}/{filename}", get(get_media_short))
         .route("/media/r/{id}/{filename}", get(get_media_raw))
         .route("/hugo-items", get(get_hugo_items))
+        .route("/hugo-metadata", get(get_hugo_metadata))
         .route("/assets/style.css", get(get_asset_style))
         .route("/assets/script.js", get(get_asset_script))
 }
@@ -133,6 +134,21 @@ async fn get_hugo_items() -> Result<Json<Vec<Item>>, StatusCode> {
             .await
             .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
     ))
+}
+
+#[axum::debug_handler]
+async fn get_hugo_metadata() -> Result<Json<CollectionMetadata>, StatusCode> {
+    let client = reqwest::Client::new();
+    let omeka_client = omeka::Client::from_config(client.clone())
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+    let resolver = Resolver::new(omeka_client);
+
+    Ok(Json(CollectionMetadata {
+        tags: resolver
+            .list_all_tags()
+            .await
+            .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
+    }))
 }
 
 #[axum::debug_handler]

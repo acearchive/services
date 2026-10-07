@@ -105,9 +105,6 @@ pub struct UrlPropertyValue {
 
 #[derive(Debug, Deserialize)]
 pub struct ResourcePropertyValue {
-    #[serde(rename = "value_resource_id")]
-    pub id: InternalId,
-
     #[serde(rename = "display_title")]
     pub title: String,
 }
@@ -191,6 +188,14 @@ pub struct ItemSetResponse {
 }
 
 impl ItemSetResponse {
+    pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>
+    where
+        T: fmt::Display + Clone,
+        F: FnOnce(&ItemSetResponse) -> &[LiteralPropertyValue<T>],
+    {
+        expect_one(ResourceType::ItemSet, self.internal_id, property, f(self))
+    }
+
     pub fn maybe_one<T, F>(&self, property: Property, f: F) -> Option<T>
     where
         T: fmt::Display + Clone,

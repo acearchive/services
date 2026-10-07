@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     cache, config,
-    models::{File, Item, Link},
+    models::{File, Item, Link, Tag, TagKind},
     omeka,
 };
 
@@ -468,7 +468,8 @@ impl Resolver {
                     .filter_map(|value| {
                         item_set_responses_by_id
                             .get(&value.id)?
-                            .maybe_one(omeka::Property::Title, |i| &i.title)
+                            .expect_one(omeka::Property::Title, |i| &i.title)
+                            .ok()
                     })
                     .collect();
                 let files = item_response
@@ -524,5 +525,33 @@ impl Resolver {
                 })
             })
             .collect())
+    }
+
+    pub async fn list_all_tags(&self) -> anyhow::Result<Vec<Tag>> {
+        let (mut response, mut maybe_next_page) = self
+            .client
+            .find(omeka::ResourceType::ItemSet, &omeka::FindQuery::new())
+            .await?;
+
+        let mut item_set_responses = response.json::<Vec<omeka::ItemSetResponse>>().await?;
+
+        while let Some(page) = maybe_next_page {
+            (response, maybe_next_page) = self.client.next_page(page).await?;
+            item_set_responses.extend(response.json::<Vec<omeka::ItemSetResponse>>().await?);
+        }
+
+        Ok(item_set_responses
+            .into_iter()
+            .filter_map(|item_set_response| {
+                Some(Tag {
+                    name: item_set_response
+                        .expect_one(omeka::Property::Title, |i| &i.title)
+                        .ok()?,
+                    kind: TagKind::Collection,
+                    description: item_set_response
+                        .maybe_one(omeka::Property::Description, |i| &i.description),
+                })
+            })
+            .collect::<Vec<Tag>>())
     }
 }
