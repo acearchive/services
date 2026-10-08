@@ -116,6 +116,13 @@ pub struct IdPropertyValue {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum SuggestedPropertyValue {
+    Url(UrlPropertyValue),
+    Literal(LiteralPropertyValue<String>),
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ItemResponse {
     #[serde(rename = "o:id")]
     pub internal_id: InternalId,
@@ -145,7 +152,7 @@ pub struct ItemResponse {
     pub creator: Vec<ResourcePropertyValue>,
 
     #[serde(default, rename = "dcterms:subject")]
-    pub subject: Vec<UrlPropertyValue>,
+    pub subject: Vec<SuggestedPropertyValue>,
 
     #[serde(default, rename = "dcterms:relation")]
     pub relation: Vec<UrlPropertyValue>,

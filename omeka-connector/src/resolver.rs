@@ -460,7 +460,10 @@ impl Resolver {
                 let identities = item_response
                     .subject
                     .into_iter()
-                    .map(|value| value.title)
+                    .map(|value| match value {
+                        omeka::SuggestedPropertyValue::Literal(value) => value.value,
+                        omeka::SuggestedPropertyValue::Url(value) => value.title,
+                    })
                     .collect();
                 let collections = item_response
                     .item_set
