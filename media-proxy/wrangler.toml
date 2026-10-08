@@ -10,4 +10,4 @@ enabled = true
 
 [vars]
 DATA_CONNECTOR_URL = "https://connector.acearchive.lgbt"
-CACHE_TTL = 14400
+CACHE_TTL = "14400"
