@@ -17,6 +17,15 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         return Fetch::Url(asset_url.parse()?).send().await;
     }
 
+    // The upstream Omeka Data Connector would already handle this case fine, but short-circuiting
+    // here saves us the trip.
+    if !request_path.starts_with("/artifacts/")
+        && !request_path.starts_with("/a/")
+        && !request_path.starts_with("/r/")
+    {
+        return Ok(Response::empty()?.with_status(404));
+    }
+
     let upstream_url = format!(
         "{}/media{}",
         data_connector_url.trim_end_matches('/'),
