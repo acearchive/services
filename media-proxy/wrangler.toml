@@ -1,4 +1,5 @@
 name = "acearchive-media-proxy"
+account_id = "dd48e1a60e3648ec3f391663eadf89b8"
 main = "build/index.js"
 compatibility_date = "2026-10-08"
 

@@ -1,0 +1,10 @@
+name = "acearchive-hha-archive"
+account_id = "dd48e1a60e3648ec3f391663eadf89b8"
+compatibility_date = "2026-10-08"
+
+[build]
+command = "./build.nu"
+
+[assets]
+directory = "./public/"
+not_found_handling = "404-page"
