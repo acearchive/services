@@ -16,3 +16,7 @@ Archive](https://acearchive.lgbt).
   Group.
 - [Infrastructure](./infra/): This OpenTofu configuration declaratively
   describes the project's cloud infrastructure.
+
+This repo supports the [just](https://just.systems/man/en/installation.html)
+command runner. Run `just` to see a list of recipes. See each service's README
+for a list of dependencies.

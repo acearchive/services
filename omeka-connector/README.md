@@ -90,6 +90,7 @@ from a `.env` file if one is available.
 
 ## Deployment
 
-A CI workflow publishes a container image `ghcr.io/acearchive/omeka-connector`.
-The image includes a healthcheck binary at `/usr/local/bin/healthcheck` which
-checks the server's `/health` endpoint.
+A CI workflow publishes a container image to
+`ghcr.io/acearchive/omeka-connector` from `main`. The image includes a
+healthcheck binary at `/usr/local/bin/healthcheck` which checks the server's
+`/health` endpoint.

@@ -10,3 +10,12 @@ site downloads the HHA archive from Ace Archive (if not already present
 locally), unzips it, and generates a static site using
 [acearchive/yahoo-groups-reader](https://github.com/acearchive/yahoo-groups-reader),
 which is included here as a git submodule.
+
+## Deployment
+
+Building and deploying this site requires the following tools:
+
+- `unzip`
+- [Nushell](https://www.nushell.sh/book/installation.html)
+- [Go](https://go.dev/dl/)
+- [npm](https://nodejs.org/en/download)

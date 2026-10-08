@@ -8,6 +8,7 @@ the repo.
 Working with this project's infrastructure requires the following tools:
 
 - [just](https://just.systems/man/en/installation.html)
+- [Nushell](https://www.nushell.sh/book/installation.html)
 - [OpenTofu](https://opentofu.org/docs/intro/install/)
 - [SOPS](https://getsops.io/)
 - [age](https://age-encryption.org/)

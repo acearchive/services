@@ -29,3 +29,10 @@ https://files.acearchive.lgbt/r/cmD6HyZzoISB/choose-your-label.png
 Omeka S and the Omeka Data Connector run on a single server in a single region.
 Scaling a VPS is expensive. This edge function caches media on the Cloudflare
 network to reduce load on the Omeka server.
+
+## Deployment
+
+Building and deploying this edge function requires the following tools:
+
+- [npm](https://nodejs.org/en/download)
+- [Cargo](https://rust-lang.org/tools/install/)
