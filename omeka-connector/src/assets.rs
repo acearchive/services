@@ -37,7 +37,7 @@ pub struct FilePageContext {
     pub title: String,
     pub base_domain: String,
     pub page_url: String,
-    pub raw_url_path: String,
+    pub raw_url: String,
     pub short_url: String,
     pub media_type: String,
 }
@@ -48,7 +48,7 @@ impl FilePageContext {
             title: location.filename.to_string(),
             base_domain: config::base_domain()?,
             page_url: location.page_url.to_string(),
-            raw_url_path: location.raw_url.path().to_string(),
+            raw_url: location.raw_url.to_string(),
             short_url: location.short_url.to_string(),
             media_type: location.media_type.clone(),
         })
@@ -68,7 +68,7 @@ impl FilePage {
     pub fn render(page_context: &FilePageContext) -> Option<Self> {
         let fragment = if page_context.media_type.starts_with("image/") {
             let mut template_context = tera::Context::new();
-            template_context.insert("raw_url_path", &page_context.raw_url_path);
+            template_context.insert("raw_url", &page_context.raw_url);
 
             Some(
                 TEMPLATES
@@ -77,7 +77,7 @@ impl FilePage {
             )
         } else if page_context.media_type.starts_with("video/") {
             let mut template_context = tera::Context::new();
-            template_context.insert("raw_url_path", &page_context.raw_url_path);
+            template_context.insert("raw_url", &page_context.raw_url);
             template_context.insert("media_type", &page_context.media_type);
 
             Some(
@@ -87,7 +87,7 @@ impl FilePage {
             )
         } else if page_context.media_type == "application/pdf" {
             let mut template_context = tera::Context::new();
-            template_context.insert("raw_url_path", &page_context.raw_url_path);
+            template_context.insert("raw_url", &page_context.raw_url);
 
             Some(
                 TEMPLATES
@@ -96,7 +96,7 @@ impl FilePage {
             )
         } else if page_context.media_type == "text/html" {
             let mut template_context = tera::Context::new();
-            template_context.insert("raw_url_path", &page_context.raw_url_path);
+            template_context.insert("raw_url", &page_context.raw_url);
 
             Some(
                 TEMPLATES
@@ -111,7 +111,7 @@ impl FilePage {
         template_context.insert("title", &page_context.title);
         template_context.insert("base_domain", &page_context.base_domain);
         template_context.insert("page_url", &page_context.page_url);
-        template_context.insert("raw_url_path", &page_context.raw_url_path);
+        template_context.insert("raw_url", &page_context.raw_url);
         template_context.insert("short_url", &page_context.short_url);
         template_context.insert("embed", &fragment);
 
