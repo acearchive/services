@@ -1,0 +1,12 @@
+[package]
+name = "acearchive-media-proxy"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worker = { version = "0.8" }
+worker-macros = { version = "0.8" }
