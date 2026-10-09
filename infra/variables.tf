@@ -9,3 +9,12 @@ variable "cloudflare_account_id" {
   description = "Cloudflare account ID"
 }
 
+variable "vps_ipv4" {
+  type        = string
+  description = "IPv4 address of the VPS"
+}
+
+variable "vps_ipv6" {
+  type        = string
+  description = "IPv6 address of the VPS"
+}
