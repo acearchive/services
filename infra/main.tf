@@ -10,7 +10,7 @@ terraform {
     key    = "tofu.tfstate"
     bucket = "acearchive-tofu"
     endpoints = {
-      s3 = "https://dd48e1a60e3648ec3f391663eadf89b8.r2.cloudflarestorage.com"
+      s3 = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
     }
     region                      = "auto"
     use_lockfile                = true
