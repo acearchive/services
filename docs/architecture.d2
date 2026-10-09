@@ -47,6 +47,10 @@ cf: "Cloudflare" {
     shape: "queue"
   }
 
+  site: "Site\nProxy" {
+    shape: "queue"
+  }
+
   backups: "Backups\nBucket" {
     shape: "cylinder"
   }
@@ -96,12 +100,13 @@ github: "GitHub" {
   }
 }
 
-visitor -> cf.cdn: "Visit"
+visitor -> cf.site
 visitor -> cf.proxy: "Visit"
 
 github.deployment -> vps.omeka: "Deploy"
 github.services -> vps.connector: "Deploy"
 github.services -> cf.proxy: "Deploy"
+github.site -> cf.site: "Deploy"
 github.site -> cf.cdn: "Deploy"
 github.site -> vps.proxy: "Fetch Data"
 
@@ -117,3 +122,4 @@ vps.backups -> vps.drive: "Fetch Files"
 cf.proxy -> vps.proxy: "Forward"
 cf.proxy -> cf.cache: "Cache"
 cf.backups -> cf.backups: "Delete"
+cf.site -> cf.cdn: "Fetch Assets"
