@@ -1,0 +1,119 @@
+direction: up
+
+title: "Ace Archive Architecture" {
+  shape: text
+  near: top-center
+  style: {
+    font-size: 40
+  }
+}
+
+legend: "Legend" {
+  user: "User" {
+    shape: "person"
+  }
+
+  compute: "Compute" {
+    shape: "queue"
+  }
+
+  storage: "Storage" {
+    shape: "cylinder"
+  }
+
+  service: "Service" {
+    shape: "cloud"
+  }
+
+  repository: "Source\nRepository" {
+    shape: "package"
+  }
+}
+
+visitor: "Visitor" {
+  shape: "person"
+}
+
+cf: "Cloudflare" {
+  cdn: "CDN" {
+    shape: "cloud"
+  }
+
+  cache: "Cache" {
+    shape: "cloud"
+  }
+
+  proxy: "Media\nProxy" {
+    shape: "queue"
+  }
+
+  backups: "Backups\nBucket" {
+    shape: "cylinder"
+  }
+}
+
+vps: VPS {
+  omeka: "Omeka S" {
+    shape: "queue"
+  }
+
+  db: "MySQL" {
+    shape: "cylinder"
+  }
+
+  drive: "Block\nStorage" {
+    shape: "cylinder"
+  }
+
+  connector: "Omeka\nData\nConnector" {
+    shape: "queue"
+  }
+
+  proxy: "Reverse\nProxy" {
+    shape: "queue"
+  }
+
+  backups: "Backup\nScript" {
+    shape: "queue"
+  }
+
+  timer: "systemd\nTimer" {
+    shape: "queue"
+  }
+}
+
+github: "GitHub" {
+  services: "Services\nRepository" {
+    shape: "package"
+  }
+
+  deployment: "Omeka\nDeployment\nRepository" {
+    shape: "package"
+  }
+
+  site: "Static\nSite\nRepository" {
+    shape: "package"
+  }
+}
+
+visitor -> cf.cdn: "Visit"
+visitor -> cf.proxy: "Visit"
+
+github.deployment -> vps.omeka: "Deploy"
+github.services -> vps.connector: "Deploy"
+github.services -> cf.proxy: "Deploy"
+github.site -> cf.cdn: "Deploy"
+github.site -> vps.proxy: "Fetch Data"
+
+vps.omeka -> vps.db: "Store Data"
+vps.omeka -> vps.drive: "Store Files"
+vps.proxy -> vps.omeka: "Forward"
+vps.proxy -> vps.connector: "Forward"
+vps.backups -> cf.backups: "Store"
+vps.timer -> vps.backups: "Trigger"
+vps.backups -> vps.db: "Fetch Data"
+vps.backups -> vps.drive: "Fetch Files"
+
+cf.proxy -> vps.proxy: "Forward"
+cf.proxy -> cf.cache: "Cache"
+cf.backups -> cf.backups: "Delete"
