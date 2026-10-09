@@ -3,6 +3,8 @@
 This is the monorepo for the various backend services that support [Ace
 Archive](https://acearchive.lgbt).
 
+[Architecture Diagram](./docs/architecture.svg) ([source](./docs/architecture.d2))
+
 - [Omeka Data Connector](./omeka-connector/): This service is deployed
   alongside the [Omeka S
   installation](https://github.com/acearchive/omeka-deployment) and sits in front
@@ -20,5 +22,3 @@ Archive](https://acearchive.lgbt).
 This repo supports the [just](https://just.systems/man/en/installation.html)
 command runner. Run `just` to see a list of recipes. See each service's README
 for a list of dependencies.
-
-[Architecture Diagram](./docs/architecture.svg) ([source](./docs/architecture.d2))
