@@ -8,6 +8,8 @@ See the following architecture diagrams:
 - [Architecture (Full)](./docs/architecture-full.svg)
 - [Architecture (Simplified)](./docs/architecture-simple.svg)
 
+Here is a list of services in this repo:
+
 - [Omeka Data Connector](./omeka-connector/): This service is deployed
   alongside the [Omeka S
   installation](https://github.com/acearchive/omeka-deployment) and sits in front
