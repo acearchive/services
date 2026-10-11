@@ -8,3 +8,7 @@ command = "./build.nu"
 [assets]
 directory = "./public/"
 not_found_handling = "404-page"
+
+[[routes]]
+pattern = "hha.acearchive.lgbt"
+custom_domain = true
