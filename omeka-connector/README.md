@@ -5,10 +5,10 @@ installation](https://github.com/acearchive/omeka-deployment) and sits in front
 of the Omeka S API. It has a few responsibilities:
 
 1. Serve media files from the collection.
-2. Serve metadata that the [Hugo
-   site](https://github.com/acearchive/acearchive.lgbt) ingests at build time.
+2. Serve metadata that the [static site](https://github.com/acearchive/site)
+   ingests at build time.
 3. Generate periodic data exports of the collection in portable human- and
-   machine-readable formats suitable for distribution.
+   machine-readable formats suitable for distribution (_not yet implemented_).
 
 ## What it does
 
@@ -54,15 +54,16 @@ files themselves are always hosted directly from Omkea.
 ### Serving metadata
 
 This service serves metadata about every item, item set, and media file in the
-collection from `GET /items`. This metadata is in a format intended to be
-consumed by [Hugo content
-adapters](https://gohugo.io/content-management/content-adapters/) and used to
-build the [static site](https://github.com/acearchive/acearchive.lgbt).
+collection from two endpoints: `GET /hugo-items` and `GET /hugo-metadata`.
+These endpoints return metadata is a format intended to be consumed by [Hugo
+content adapters](https://gohugo.io/content-management/content-adapters/) and
+used to build the [static site](https://github.com/acearchive/site). These
+endpoints **are not** public API.
 
-This single endpoint returns the entire collection without pagination. This
-makes for a long response time (on the order of several seconds), but that is
-acceptable because it is only called once at site build time and removes
-significant complexity from the static site template.
+The `GET /hugo-items` endpoint returns the entire collection without
+pagination. This makes for a long response time (on the order of several
+seconds), but that is acceptable because it is only called once at site build
+time and removes significant complexity from the static site template.
 
 ### Generating data exports
 
