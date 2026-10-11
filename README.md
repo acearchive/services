@@ -3,7 +3,10 @@
 This is the monorepo for the various backend services that support [Ace
 Archive](https://acearchive.lgbt).
 
-[Architecture Diagram](./docs/architecture.svg) ([source](./docs/architecture.d2))
+See the following architecture diagrams:
+
+- [Architecture (Full)](./docs/architecture-full.svg)
+- [Architecture (Simplified)](./docs/architecture-simple.svg)
 
 - [Omeka Data Connector](./omeka-connector/): This service is deployed
   alongside the [Omeka S

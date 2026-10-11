@@ -1,0 +1,74 @@
+direction: up
+
+title: "Ace Archive Architecture\n(Simplified)" {
+  shape: text
+  near: top-center
+  style: {
+    font-size: 40
+  }
+}
+
+legend: "Legend" {
+  user: "User" {
+    shape: "person"
+  }
+
+  compute: "Compute" {
+    shape: "queue"
+  }
+
+  storage: "Storage" {
+    shape: "cylinder"
+  }
+
+  service: "Service" {
+    shape: "cloud"
+  }
+}
+
+visitor: "Visitor" {
+  shape: "person"
+}
+
+vps: VPS {
+  omeka: "Omeka S" {
+    shape: "queue"
+  }
+
+  connector: "Omeka\nData\nConnector" {
+    shape: "queue"
+  }
+
+  proxy: "Caddy\nReverse\nProxy" {
+    shape: "queue"
+  }
+
+  backups: "Backup\nService" {
+    shape: "queue"
+  }
+}
+
+cf: "Cloudflare" {
+  cdn: "CDN" {
+    shape: "cloud"
+  }
+
+  proxy: "Media\nProxy" {
+    shape: "queue"
+  }
+
+  backups: "Backups\nBucket" {
+    shape: "cylinder"
+  }
+}
+
+visitor -> cf.cdn: "Visit"
+visitor -> cf.proxy: "Visit"
+
+vps.proxy -> vps.omeka: "Forward"
+vps.proxy -> vps.connector: "Forward"
+vps.connector -> vps.omeka: "Call API"
+vps.backups -> cf.backups: "Store"
+
+cf.proxy -> vps.proxy: "Forward"
+cf.backups -> cf.backups: "Delete"

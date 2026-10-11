@@ -39,7 +39,7 @@ vps: VPS {
     shape: "queue"
   }
 
-  db: "MySQL" {
+  mysql: "MySQL" {
     shape: "cylinder"
   }
 
@@ -51,7 +51,7 @@ vps: VPS {
     shape: "queue"
   }
 
-  proxy: "Reverse\nProxy" {
+  proxy: "Caddy\nReverse\nProxy" {
     shape: "queue"
   }
 
@@ -61,6 +61,14 @@ vps: VPS {
 
   timer: "systemd\nTimer" {
     shape: "queue"
+  }
+
+  umami: "Umami\nAnalytics" {
+    shape: "queue"
+  }
+
+  pg: "Postgres" {
+    shape: "cylinder"
   }
 }
 
@@ -100,8 +108,9 @@ github: "GitHub" {
   }
 }
 
-visitor -> cf.site
+visitor -> cf.site: "Visit"
 visitor -> cf.proxy: "Visit"
+visitor -> vps.umami: "Ping"
 
 github.deployment -> vps.omeka: "Deploy"
 github.services -> vps.connector: "Deploy"
@@ -110,14 +119,16 @@ github.site -> cf.site: "Deploy"
 github.site -> cf.cdn: "Deploy"
 github.site -> vps.proxy: "Fetch Data"
 
-vps.omeka -> vps.db: "Store Data"
+vps.omeka -> vps.mysql: "Store Data"
 vps.omeka -> vps.drive: "Store Files"
+vps.connector -> vps.omeka: "Call API"
 vps.proxy -> vps.omeka: "Forward"
 vps.proxy -> vps.connector: "Forward"
 vps.backups -> cf.backups: "Store"
 vps.timer -> vps.backups: "Trigger"
-vps.backups -> vps.db: "Fetch Data"
+vps.backups -> vps.mysql: "Fetch Data"
 vps.backups -> vps.drive: "Fetch Files"
+vps.umami -> vps.pg: "Store Analytics"
 
 cf.proxy -> vps.proxy: "Forward"
 cf.proxy -> cf.cache: "Cache"
