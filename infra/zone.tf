@@ -1,6 +1,10 @@
+locals {
+  acearchive_domain = "acearchive.lgbt"
+}
+
 data "cloudflare_zone" "acearchive" {
   filter = {
-    name = "acearchive.lgbt"
+    name = local.acearchive_domain
     account = {
       id = var.cloudflare_account_id
     }

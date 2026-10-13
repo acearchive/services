@@ -46,3 +46,17 @@ resource "cloudflare_r2_bucket_lock" "omeka_backups" {
     }
   }]
 }
+
+resource "cloudflare_r2_bucket" "acearchive_static" {
+  account_id = var.cloudflare_account_id
+  name       = "acearchive-static"
+}
+
+resource "cloudflare_r2_custom_domain" "acearchive_static" {
+  account_id  = var.cloudflare_account_id
+  zone_id     = data.cloudflare_zone.acearchive.id
+  bucket_name = cloudflare_r2_bucket.acearchive_static.name
+  domain      = "static.${local.acearchive_domain}"
+  enabled     = true
+  min_tls     = "1.2"
+}
