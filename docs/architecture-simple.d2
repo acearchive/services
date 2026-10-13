@@ -62,8 +62,8 @@ cf: "Cloudflare" {
   }
 }
 
-visitor -> cf.cdn: "Visit"
-visitor -> cf.proxy: "Visit"
+visitor -> cf.cdn: "Visit Site"
+visitor -> cf.proxy: "View File"
 
 vps.proxy -> vps.omeka: "Forward"
 vps.proxy -> vps.connector: "Forward"
