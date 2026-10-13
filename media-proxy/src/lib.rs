@@ -29,7 +29,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let upstream_url = format!(
         "{}/media{}",
         data_connector_url.trim_end_matches('/'),
-        request_path
+        request_path.trim_end_matches('/')
     );
 
     let upstream_request = Request::new_with_init(
