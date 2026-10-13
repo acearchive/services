@@ -108,9 +108,9 @@ github: "GitHub" {
   }
 }
 
-visitor -> cf.site: "Visit"
-visitor -> cf.proxy: "Visit"
-visitor -> vps.umami: "Ping"
+visitor -> cf.site: "Visit Site"
+visitor -> cf.proxy: "View File"
+visitor -> vps.proxy: "Send Analytics"
 
 github.deployment -> vps.omeka: "Deploy"
 github.services -> vps.connector: "Deploy"
@@ -124,6 +124,7 @@ vps.omeka -> vps.drive: "Store Files"
 vps.connector -> vps.omeka: "Call API"
 vps.proxy -> vps.omeka: "Forward"
 vps.proxy -> vps.connector: "Forward"
+vps.proxy -> vps.umami: "Forward"
 vps.backups -> cf.backups: "Store"
 vps.timer -> vps.backups: "Trigger"
 vps.backups -> vps.mysql: "Fetch Data"
