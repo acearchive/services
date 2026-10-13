@@ -21,9 +21,9 @@ use super::{
 pub fn new() -> Router {
     Router::new()
         .route("/health", get(get_health))
-        .route("/media/artifacts/{slug}/{filename}", get(get_media_long))
-        .route("/media/a/{id}/{filename}", get(get_media_short))
-        .route("/media/r/{id}/{filename}", get(get_media_raw))
+        .route("/media/artifacts/{slug}/{*filename}", get(get_media_long))
+        .route("/media/a/{id}/{*filename}", get(get_media_short))
+        .route("/media/r/{id}/{*filename}", get(get_media_raw))
         .route("/hugo-items", get(get_hugo_items))
         .route("/hugo-metadata", get(get_hugo_metadata))
         .route("/assets/style.css", get(get_asset_style))
