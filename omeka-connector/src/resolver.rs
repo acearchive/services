@@ -248,41 +248,48 @@ impl Resolver {
         }
 
         let media_location = match media_responses.first() {
-            Some(media_response) => MediaLocation {
-                omeka_url: reqwest::Url::parse(&media_response.original_url)?,
-                canonical_url: match &key {
-                    MediaLocator::Long { slug, .. } if slug != &canonical_slug => {
-                        CanonicalUrl::ShouldRedirect(
+            Some(media_response) => {
+                let canonical_filename =
+                    media_response.expect_one(omeka::Property::Filename, |m| &m.filename)?;
+
+                MediaLocation {
+                    omeka_url: reqwest::Url::parse(&media_response.original_url)?,
+                    canonical_url: match &key {
+                        MediaLocator::Long { slug, filename }
+                            if slug != &canonical_slug || filename != &canonical_filename =>
+                        {
+                            CanonicalUrl::ShouldRedirect(
+                                MediaLocator::Long {
+                                    slug: canonical_slug.clone(),
+                                    filename: canonical_filename.clone(),
+                                }
+                                .to_url()?,
+                            )
+                        }
+                        MediaLocator::Short { .. } => CanonicalUrl::ShouldRedirect(
                             MediaLocator::Long {
                                 slug: canonical_slug.clone(),
-                                filename: key.filename().clone(),
+                                filename: canonical_filename.clone(),
                             }
                             .to_url()?,
-                        )
+                        ),
+                        _ => CanonicalUrl::AlreadyCanonical,
+                    },
+                    media_type: media_response.media_type.clone(),
+                    filename: canonical_filename.clone(),
+                    page_url: page_url(&canonical_slug)?,
+                    raw_url: MediaLocator::Raw {
+                        id: id.clone(),
+                        filename: canonical_filename.clone(),
                     }
-                    MediaLocator::Short { .. } => CanonicalUrl::ShouldRedirect(
-                        MediaLocator::Long {
-                            slug: canonical_slug.clone(),
-                            filename: key.filename().clone(),
-                        }
-                        .to_url()?,
-                    ),
-                    _ => CanonicalUrl::AlreadyCanonical,
-                },
-                media_type: media_response.media_type.clone(),
-                filename: key.filename().clone(),
-                page_url: page_url(&canonical_slug)?,
-                raw_url: MediaLocator::Raw {
-                    id: id.clone(),
-                    filename: key.filename().clone(),
+                    .to_url()?,
+                    short_url: MediaLocator::Short {
+                        id,
+                        filename: canonical_filename,
+                    }
+                    .to_url()?,
                 }
-                .to_url()?,
-                short_url: MediaLocator::Short {
-                    id,
-                    filename: key.filename().clone(),
-                }
-                .to_url()?,
-            },
+            }
             None => {
                 let (response, _) = self
                     .client
