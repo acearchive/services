@@ -353,7 +353,7 @@ impl Resolver {
             }
         };
 
-        cache::put_media_location(key, media_location.clone());
+        cache::put_media_location(key, media_location.clone())?;
 
         Ok(media_location)
     }

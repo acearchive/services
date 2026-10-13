@@ -86,6 +86,8 @@ from a `.env` file if one is available.
 - `SCRATCH_DIR`: A scratch directory for writing temporary data to. This does
   not need to be durable, but it is used for assembling large ZIP archives, so it
   should probably not point to a directory on tmpfs for similar.
+- `MEDIA_CACHE_TTL_SECS`: How long, in seconds, to cache URL mappings in
+  memory.
 - `DATA_EXPORT_CRON_SPEC`: A cron spec which determines the frequency of
   automatic data exports. If unset, automatic data exports are disabled.
 
