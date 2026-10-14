@@ -77,16 +77,21 @@ async fn get_media(locator: MediaLocator) -> Result<impl IntoResponse, StatusCod
                     let file_page_context = FilePageContext::from_location(&location)
                         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
 
-                    FilePage::render(&file_page_context)
-                        .map(|page| {
-                            (
-                                StatusCode::OK,
-                                [("Content-Type", "text/html")],
-                                page.to_string(),
-                            )
-                                .into_response()
-                        })
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)
+                    match FilePage::render(&file_page_context) {
+                        Some(page) => Ok((
+                            StatusCode::OK,
+                            [("Content-Type", "text/html")],
+                            page.to_string(),
+                        )
+                            .into_response()),
+                        None => Ok(proxy_response(
+                            client
+                                .get(location.omeka_url)
+                                .send()
+                                .await
+                                .map_err(map_error(StatusCode::BAD_GATEWAY))?,
+                        )),
+                    }
                 }
             }
         },
