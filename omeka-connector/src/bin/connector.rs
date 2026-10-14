@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use acearchive_data_connector::{config, init_config, init_logger, router};
+use acearchive_data_connector::{config, init_config, init_logger, router, write_graph};
 
 #[tokio::main]
 async fn main() {
@@ -11,6 +11,8 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
         .unwrap();
+
+    write_graph().unwrap();
 
     log::info!("Server starting.");
 
