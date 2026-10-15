@@ -310,17 +310,19 @@ impl ModelSerializer {
             Literal::from(year_range),
         );
 
-        for identity_url in &item.identities {
+        for identity in &item.identities {
+            let identity_object = match &identity.url {
+                Some(identity_url) => Object::from(Iri::new(identity_url.to_string())),
+                None => Object::from(identity.name.clone()),
+            };
+
             self.graph.insert(
                 item_iri.clone(),
                 NS.dcterms.get("subject"),
-                Iri::new(identity_url.to_string()),
+                identity_object.clone(),
             );
-            self.graph.insert(
-                item_iri.clone(),
-                NS.schema.get("about"),
-                Iri::new(identity_url.to_string()),
-            );
+            self.graph
+                .insert(item_iri.clone(), NS.schema.get("about"), identity_object);
         }
 
         for link in &item.links {

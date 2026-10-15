@@ -9,9 +9,6 @@ impl Lang {
     pub fn new<S: Into<Cow<'static, str>>>(s: S) -> Self {
         Lang(s.into())
     }
-    pub const fn from_static(s: &'static str) -> Self {
-        Lang(Cow::Borrowed(s))
-    }
 }
 
 impl fmt::Display for Lang {
@@ -31,7 +28,8 @@ pub struct File {
     pub title: LocalizedString,
     pub filename: AceFilename,
     pub media_type: String,
-    pub lang: Option<String>,
+    // The language of the file's contents, which may differ from the language of its title.
+    pub lang: Option<Lang>,
 }
 
 #[derive(Debug, Clone)]
@@ -44,6 +42,14 @@ pub struct Link {
 pub struct Person {
     // Names of people are not localized.
     pub name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct Identity {
+    pub name: LocalizedString,
+    // An identity may come from a controlled vocabulary (e.g. Homosaurus), in which case it has a
+    // URL, or it may be a free-text label.
+    pub url: Option<reqwest::Url>,
 }
 
 #[derive(Debug, Clone)]
@@ -65,6 +71,6 @@ pub struct Item {
     pub files: Vec<File>,
     pub links: Vec<Link>,
     pub people: Vec<Person>,
-    pub identities: Vec<reqwest::Url>,
+    pub identities: Vec<Identity>,
     pub collections: Vec<Collection>,
 }

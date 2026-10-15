@@ -3,6 +3,7 @@ use std::fmt;
 use serde::Deserialize;
 
 use super::property::{AceFilename, AceId, AceSlug, InternalId, Property, ResourceType};
+use crate::models::{Lang, LocalizedString};
 
 /// An error signaling that a resource should be skipped because it is missing required data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,7 +22,7 @@ fn expect_one<T>(
     internal_id: InternalId,
     property: Property,
     values: &[LiteralPropertyValue<T>],
-) -> anyhow::Result<T>
+) -> anyhow::Result<LiteralPropertyValue<T>>
 where
     T: fmt::Display + Clone,
 {
@@ -43,7 +44,7 @@ where
         );
     }
 
-    match values.iter().next().map(|value| value.value.clone()) {
+    match values.first().cloned() {
         Some(value) => Ok(value),
         None => {
             log::warn!(
@@ -63,7 +64,7 @@ fn maybe_one<T>(
     internal_id: InternalId,
     property: Property,
     values: &[LiteralPropertyValue<T>],
-) -> Option<T>
+) -> Option<LiteralPropertyValue<T>>
 where
     T: fmt::Display + Clone,
 {
@@ -85,13 +86,25 @@ where
         );
     }
 
-    values.first().map(|value| value.value.clone()).clone()
+    values.first().cloned()
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct LiteralPropertyValue<T> {
     #[serde(rename = "@value")]
     pub value: T,
+
+    #[serde(rename = "@language")]
+    pub lang: Option<String>,
+}
+
+impl From<LiteralPropertyValue<String>> for LocalizedString {
+    fn from(value: LiteralPropertyValue<String>) -> Self {
+        LocalizedString {
+            value: value.value,
+            lang: value.lang.map(Lang::new),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -101,6 +114,19 @@ pub struct UrlPropertyValue {
 
     #[serde(rename = "o:label")]
     pub title: String,
+
+    /// The language of the label, not of the resource the URL points to.
+    #[serde(rename = "@language")]
+    pub lang: Option<String>,
+}
+
+impl UrlPropertyValue {
+    pub fn localized_title(&self) -> LocalizedString {
+        LocalizedString {
+            value: self.title.clone(),
+            lang: self.lang.clone().map(Lang::new),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -170,15 +196,21 @@ impl ItemResponse {
         T: fmt::Display + Clone,
         F: FnOnce(&ItemResponse) -> &[LiteralPropertyValue<T>],
     {
-        expect_one(ResourceType::Item, self.internal_id, property, f(self))
+        expect_one(ResourceType::Item, self.internal_id, property, f(self)).map(|v| v.value)
     }
 
-    pub fn maybe_one<T, F>(&self, property: Property, f: F) -> Option<T>
+    pub fn expect_localized<F>(&self, property: Property, f: F) -> anyhow::Result<LocalizedString>
     where
-        T: fmt::Display + Clone,
-        F: FnOnce(&ItemResponse) -> &[LiteralPropertyValue<T>],
+        F: FnOnce(&ItemResponse) -> &[LiteralPropertyValue<String>],
     {
-        maybe_one(ResourceType::Item, self.internal_id, property, f(self))
+        expect_one(ResourceType::Item, self.internal_id, property, f(self)).map(Into::into)
+    }
+
+    pub fn maybe_localized<F>(&self, property: Property, f: F) -> Option<LocalizedString>
+    where
+        F: FnOnce(&ItemResponse) -> &[LiteralPropertyValue<String>],
+    {
+        maybe_one(ResourceType::Item, self.internal_id, property, f(self)).map(Into::into)
     }
 }
 
@@ -195,20 +227,18 @@ pub struct ItemSetResponse {
 }
 
 impl ItemSetResponse {
-    pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>
+    pub fn expect_localized<F>(&self, property: Property, f: F) -> anyhow::Result<LocalizedString>
     where
-        T: fmt::Display + Clone,
-        F: FnOnce(&ItemSetResponse) -> &[LiteralPropertyValue<T>],
+        F: FnOnce(&ItemSetResponse) -> &[LiteralPropertyValue<String>],
     {
-        expect_one(ResourceType::ItemSet, self.internal_id, property, f(self))
+        expect_one(ResourceType::ItemSet, self.internal_id, property, f(self)).map(Into::into)
     }
 
-    pub fn maybe_one<T, F>(&self, property: Property, f: F) -> Option<T>
+    pub fn maybe_localized<F>(&self, property: Property, f: F) -> Option<LocalizedString>
     where
-        T: fmt::Display + Clone,
-        F: FnOnce(&ItemSetResponse) -> &[LiteralPropertyValue<T>],
+        F: FnOnce(&ItemSetResponse) -> &[LiteralPropertyValue<String>],
     {
-        maybe_one(ResourceType::ItemSet, self.internal_id, property, f(self))
+        maybe_one(ResourceType::ItemSet, self.internal_id, property, f(self)).map(Into::into)
     }
 }
 
@@ -239,7 +269,7 @@ impl MediaResponse {
         T: fmt::Display + Clone,
         F: FnOnce(&MediaResponse) -> &[LiteralPropertyValue<T>],
     {
-        expect_one(ResourceType::Media, self.internal_id, property, f(self))
+        expect_one(ResourceType::Media, self.internal_id, property, f(self)).map(|v| v.value)
     }
 
     pub fn maybe_one<T, F>(&self, property: Property, f: F) -> Option<T>
@@ -247,6 +277,13 @@ impl MediaResponse {
         T: fmt::Display + Clone,
         F: FnOnce(&MediaResponse) -> &[LiteralPropertyValue<T>],
     {
-        maybe_one(ResourceType::Media, self.internal_id, property, f(self))
+        maybe_one(ResourceType::Media, self.internal_id, property, f(self)).map(|v| v.value)
+    }
+
+    pub fn maybe_localized<F>(&self, property: Property, f: F) -> Option<LocalizedString>
+    where
+        F: FnOnce(&MediaResponse) -> &[LiteralPropertyValue<String>],
+    {
+        maybe_one(ResourceType::Media, self.internal_id, property, f(self)).map(Into::into)
     }
 }

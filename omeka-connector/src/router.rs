@@ -13,7 +13,7 @@ use super::{
     assets::render_css,
     assets::{FilePage, FilePageContext},
     config,
-    hugo::{CollectionMetadata, Item},
+    hugo::{CollectionMetadata, Item, Tag},
     omeka,
     resolver::{CanonicalUrl, MediaLocator, Resolver},
 };
@@ -133,10 +133,16 @@ async fn get_hugo_items() -> Result<Json<Vec<Item>>, StatusCode> {
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
     let resolver = Resolver::new(omeka_client);
 
+    let items = resolver
+        .list_all_items()
+        .await
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+
     Ok(Json(
-        resolver
-            .list_all_items()
-            .await
+        items
+            .into_iter()
+            .map(Item::try_from)
+            .collect::<anyhow::Result<Vec<_>>>()
             .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
     ))
 }
@@ -150,9 +156,12 @@ async fn get_hugo_metadata() -> Result<Json<CollectionMetadata>, StatusCode> {
 
     Ok(Json(CollectionMetadata {
         tags: resolver
-            .list_all_tags()
+            .list_all_collections()
             .await
-            .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
+            .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
+            .into_iter()
+            .map(Tag::from)
+            .collect(),
     }))
 }
 

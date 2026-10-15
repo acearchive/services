@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     cache, config,
-    hugo::{File, Item, Link, Tag, TagKind},
+    models::{Collection, File, Identity, Item, Lang, Link, Person},
     omeka,
 };
 use crate::url;
@@ -405,10 +405,10 @@ impl Resolver {
                     .expect_one(omeka::Property::Slug, |i| &i.slug)
                     .ok()?;
                 let title = item_response
-                    .expect_one(omeka::Property::Title, |i| &i.title)
+                    .expect_localized(omeka::Property::Title, |i| &i.title)
                     .ok()?;
                 let summary = item_response
-                    .expect_one(omeka::Property::Abstract, |i| &i.summary)
+                    .expect_localized(omeka::Property::Abstract, |i| &i.summary)
                     .ok()?;
                 let (from_year, to_year) = item_response
                     .expect_one(omeka::Property::Created, |i| &i.created)
@@ -419,21 +419,34 @@ impl Resolver {
                 let from_year = from_year?;
 
                 // Optional single-value properties.
-                let description =
-                    item_response.maybe_one(omeka::Property::Description, |i| &i.description);
+                let description = item_response
+                    .maybe_localized(omeka::Property::Description, |i| &i.description);
 
                 // Multi-value properties.
                 let people = item_response
                     .creator
                     .into_iter()
-                    .map(|value| value.title)
+                    .map(|value| Person { name: value.title })
                     .collect();
                 let links = item_response
                     .relation
                     .into_iter()
-                    .map(|value| Link {
-                        title: value.title,
-                        url: value.url,
+                    .filter_map(|value| {
+                        let url = reqwest::Url::parse(&value.url)
+                            .inspect_err(|err| {
+                                log::warn!(
+                                    "Item with internal ID `{}` has an invalid relation URL `{}`: {}",
+                                    item_response.internal_id,
+                                    value.url,
+                                    err,
+                                );
+                            })
+                            .ok()?;
+
+                        Some(Link {
+                            title: value.localized_title(),
+                            url,
+                        })
                     })
                     .collect();
                 let aliases = item_response
@@ -445,18 +458,38 @@ impl Resolver {
                     .subject
                     .into_iter()
                     .map(|value| match value {
-                        omeka::SuggestedPropertyValue::Literal(value) => value.value,
-                        omeka::SuggestedPropertyValue::Url(value) => value.title,
+                        omeka::SuggestedPropertyValue::Literal(value) => Identity {
+                            name: value.into(),
+                            url: None,
+                        },
+                        omeka::SuggestedPropertyValue::Url(value) => Identity {
+                            name: value.localized_title(),
+                            url: reqwest::Url::parse(&value.url)
+                                .inspect_err(|err| {
+                                    log::warn!(
+                                        "Item with internal ID `{}` has an invalid subject URL `{}`: {}",
+                                        item_response.internal_id,
+                                        value.url,
+                                        err,
+                                    );
+                                })
+                                .ok(),
+                        },
                     })
                     .collect();
                 let collections = item_response
                     .item_set
                     .into_iter()
                     .filter_map(|value| {
-                        item_set_responses_by_id
-                            .get(&value.id)?
-                            .expect_one(omeka::Property::Title, |i| &i.title)
-                            .ok()
+                        let item_set_response = item_set_responses_by_id.get(&value.id)?;
+
+                        Some(Collection {
+                            title: item_set_response
+                                .expect_localized(omeka::Property::Title, |i| &i.title)
+                                .ok()?,
+                            description: item_set_response
+                                .maybe_localized(omeka::Property::Description, |i| &i.description),
+                        })
                     })
                     .collect();
                 let files = item_response
@@ -468,31 +501,13 @@ impl Resolver {
                             media.maybe_one(omeka::Property::Filename, |m| &m.filename)?;
 
                         Some(File {
-                            title: media.maybe_one(omeka::Property::Title, |m| &m.title)?,
-                            filename: filename.clone(),
+                            title: media.maybe_localized(omeka::Property::Title, |m| &m.title)?,
+                            filename,
                             media_type: media.media_type.clone(),
-                            lang: media.lang.clone(),
-                            url: MediaLocator::Long {
-                                slug: slug.clone(),
-                                filename,
-                            }
-                            .to_url()
-                            .ok()?
-                            .to_string(),
+                            lang: media.lang.clone().map(Lang::new),
                         })
                     })
                     .collect();
-
-                // Computed properties.
-                let start_decade = from_year - (from_year % 10);
-                let end_decade = to_year.map(|year| year - (year % 10));
-                let decades = end_decade
-                    .map(|end_decade| {
-                        (start_decade..=end_decade)
-                            .step_by(10)
-                            .collect::<Vec<u32>>()
-                    })
-                    .unwrap_or(vec![start_decade]);
 
                 Some(Item {
                     id,
@@ -503,7 +518,6 @@ impl Resolver {
                     aliases,
                     from_year,
                     to_year,
-                    decades,
                     files,
                     links,
                     people,
@@ -514,7 +528,8 @@ impl Resolver {
             .collect())
     }
 
-    pub async fn list_all_tags(&self) -> anyhow::Result<Vec<Tag>> {
+    /// Return metadata about every collection in the archive.
+    pub async fn list_all_collections(&self) -> anyhow::Result<Vec<Collection>> {
         let (mut response, mut maybe_next_page) = self
             .client
             .find(omeka::ResourceType::ItemSet, &omeka::FindQuery::new())
@@ -530,15 +545,14 @@ impl Resolver {
         Ok(item_set_responses
             .into_iter()
             .filter_map(|item_set_response| {
-                Some(Tag {
-                    name: item_set_response
-                        .expect_one(omeka::Property::Title, |i| &i.title)
+                Some(Collection {
+                    title: item_set_response
+                        .expect_localized(omeka::Property::Title, |i| &i.title)
                         .ok()?,
-                    kind: TagKind::Collection,
                     description: item_set_response
-                        .maybe_one(omeka::Property::Description, |i| &i.description),
+                        .maybe_localized(omeka::Property::Description, |i| &i.description),
                 })
             })
-            .collect::<Vec<Tag>>())
+            .collect())
     }
 }
