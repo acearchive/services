@@ -2,23 +2,42 @@ use super::graph::{Context, Graph, Iri, Lang, Literal, Namespace, Object, Predic
 use crate::{models, omeka, url};
 
 #[derive(Debug, Clone)]
-pub struct ModelContext {
+struct Namespaces {
     dcterms: Namespace,
     dctype: Namespace,
     schema: Namespace,
     rdfs: Namespace,
+    ace: Namespace,
 }
 
-pub const CTX: ModelContext = ModelContext {
+const NS: Namespaces = Namespaces {
     dcterms: Namespace::from_static("dcterms", "http://purl.org/dc/terms/"),
     dctype: Namespace::from_static("dctype", "http://purl.org/dc/dcmitype/"),
     schema: Namespace::from_static("schema", "https://schema.org/"),
     rdfs: Namespace::from_static("rdfs", "http://www.w3.org/2000/01/rdf-schema#"),
+    ace: Namespace::from_static("ace", "https://acearchive.lgbt/terms/"),
 };
+
+#[derive(Debug, Clone)]
+struct ModelContext {
+    ns: Namespaces,
+    include_private_terms: bool,
+}
 
 impl Context for ModelContext {
     fn namespaces(&self) -> Vec<&Namespace> {
-        vec![&self.dcterms, &self.dctype, &self.schema, &self.rdfs]
+        let mut terms = vec![
+            &self.ns.dcterms,
+            &self.ns.dctype,
+            &self.ns.schema,
+            &self.ns.rdfs,
+        ];
+
+        if self.include_private_terms {
+            terms.push(&self.ns.ace);
+        }
+
+        terms
     }
 }
 
@@ -34,7 +53,7 @@ impl Iri {
     //
     // This guidance comes from the W3C:
     // https://www.w3.org/TR/cooluris/
-    pub fn from_web_url(url: &reqwest::Url) -> Iri {
+    fn from_web_url(url: &reqwest::Url) -> Iri {
         Iri::new(format!("{}#this", url.to_string().trim_end_matches('/')))
     }
 }
@@ -51,47 +70,63 @@ impl From<models::LocalizedString> for Object {
     }
 }
 
-impl<C> Graph<C> {
+#[derive(Debug, Clone)]
+pub struct ModelOptions {
+    /// Include project-specific RDF terms.
+    pub include_private_terms: bool,
+}
+
+#[derive(Debug)]
+pub struct ModelSerializer {
+    graph: Graph<ModelContext>,
+    include_private_terms: bool,
+}
+
+impl ModelSerializer {
+    pub fn new(options: ModelOptions) -> Self {
+        Self {
+            graph: Graph::new(ModelContext {
+                ns: NS,
+                include_private_terms: options.include_private_terms,
+            }),
+            include_private_terms: options.include_private_terms,
+        }
+    }
     fn add_link(&mut self, link: &models::Link) {
         let link_iri = Iri::new(link.url.to_string());
 
-        self.insert(
+        self.graph.insert(
             link_iri.clone(),
-            CTX.dcterms.get("title"),
+            NS.dcterms.get("title"),
             link.title.clone(),
         );
-        self.insert(link_iri, CTX.schema.get("name"), link.title.clone());
+        self.graph
+            .insert(link_iri, NS.schema.get("name"), link.title.clone());
     }
 
     fn add_person(&mut self, person: &models::Person) -> anyhow::Result<()> {
         let person_url = url::person(&person.name)?;
         let person_iri = Iri::from_web_url(&person_url);
 
-        self.insert(
-            person_iri.clone(),
-            Predicate::Type,
-            CTX.dcterms.get("Agent"),
-        );
-        self.insert(
-            person_iri.clone(),
-            Predicate::Type,
-            CTX.schema.get("Person"),
-        );
+        self.graph
+            .insert(person_iri.clone(), Predicate::Type, NS.dcterms.get("Agent"));
+        self.graph
+            .insert(person_iri.clone(), Predicate::Type, NS.schema.get("Person"));
 
-        self.insert(
+        self.graph.insert(
             person_iri.clone(),
-            CTX.schema.get("url"),
+            NS.schema.get("url"),
             Literal::from(person_url.to_string()),
         );
 
-        self.insert(
+        self.graph.insert(
             person_iri.clone(),
-            CTX.dcterms.get("title"),
+            NS.dcterms.get("title"),
             Literal::from(person.name.clone()),
         );
-        self.insert(
+        self.graph.insert(
             person_iri,
-            CTX.schema.get("name"),
+            NS.schema.get("name"),
             Literal::from(person.name.clone()),
         );
 
@@ -102,43 +137,43 @@ impl<C> Graph<C> {
         let collection_url = url::collection(&collection.title.value)?;
         let collection_iri = Iri::from_web_url(&collection_url);
 
-        self.insert(
+        self.graph.insert(
             collection_iri.clone(),
             Predicate::Type,
-            CTX.dctype.get("Collection"),
+            NS.dctype.get("Collection"),
         );
-        self.insert(
+        self.graph.insert(
             collection_iri.clone(),
             Predicate::Type,
-            CTX.schema.get("Collection"),
+            NS.schema.get("Collection"),
         );
 
-        self.insert(
+        self.graph.insert(
             collection_iri.clone(),
-            CTX.schema.get("url"),
+            NS.schema.get("url"),
             Literal::from(collection_url.clone().to_string()),
         );
 
-        self.insert(
+        self.graph.insert(
             collection_iri.clone(),
-            CTX.dcterms.get("title"),
+            NS.dcterms.get("title"),
             collection.title.clone(),
         );
-        self.insert(
+        self.graph.insert(
             collection_iri.clone(),
-            CTX.schema.get("name"),
+            NS.schema.get("name"),
             collection.title.clone(),
         );
 
         if let Some(description) = &collection.description {
-            self.insert(
+            self.graph.insert(
                 collection_iri.clone(),
-                CTX.dcterms.get("description"),
+                NS.dcterms.get("description"),
                 description.clone(),
             );
-            self.insert(
+            self.graph.insert(
                 collection_iri,
-                CTX.schema.get("description"),
+                NS.schema.get("description"),
                 description.clone(),
             );
         }
@@ -150,45 +185,47 @@ impl<C> Graph<C> {
         let file_iri = Iri::new(url::file_raw(id, &file.filename)?.to_string());
         let item_iri = Iri::from_web_url(&url::artifact_short(id)?);
 
-        self.insert(
+        self.graph.insert(
             file_iri.clone(),
-            CTX.schema.get("contentUrl"),
+            NS.schema.get("contentUrl"),
             file_iri.clone(),
         );
 
-        self.insert(file_iri.clone(), Predicate::Type, CTX.dctype.get("Text"));
-        self.insert(
+        self.graph
+            .insert(file_iri.clone(), Predicate::Type, NS.dctype.get("Text"));
+        self.graph.insert(
             file_iri.clone(),
             Predicate::Type,
-            CTX.schema.get("MediaObject"),
+            NS.schema.get("MediaObject"),
         );
 
-        self.insert(
+        self.graph.insert(
             file_iri.clone(),
-            CTX.dcterms.get("format"),
+            NS.dcterms.get("format"),
             Literal::from(file.media_type.clone()),
         );
-        self.insert(
+        self.graph.insert(
             file_iri.clone(),
-            CTX.schema.get("encodingFormat"),
+            NS.schema.get("encodingFormat"),
             Literal::from(file.media_type.clone()),
         );
 
-        self.insert(
+        self.graph.insert(
             file_iri.clone(),
-            CTX.dcterms.get("title"),
+            NS.dcterms.get("title"),
             file.title.clone(),
         );
-        self.insert(file_iri.clone(), CTX.schema.get("name"), file.title.clone());
+        self.graph
+            .insert(file_iri.clone(), NS.schema.get("name"), file.title.clone());
 
-        self.insert(
+        self.graph.insert(
             file_iri.clone(),
-            CTX.dcterms.get("isFormatOf"),
+            NS.dcterms.get("isFormatOf"),
             item_iri.clone(),
         );
-        self.insert(
+        self.graph.insert(
             file_iri.clone(),
-            CTX.schema.get("encodesCreativeWork"),
+            NS.schema.get("encodesCreativeWork"),
             item_iri,
         );
 
