@@ -185,6 +185,14 @@ impl ModelSerializer {
         let file_iri = Iri::new(url::file_raw(id, &file.filename)?.to_string());
         let item_iri = Iri::from_web_url(&url::artifact_short(id)?);
 
+        if self.include_private_terms {
+            self.graph.insert(
+                file_iri.clone(),
+                NS.ace.get("filename"),
+                Literal::from(file.filename.to_string()),
+            );
+        }
+
         self.graph.insert(
             file_iri.clone(),
             NS.schema.get("contentUrl"),
@@ -232,7 +240,7 @@ impl ModelSerializer {
         Ok(())
     }
 
-    fn add_item(&mut self, item: &models::Item) -> anyhow::Result<()> {
+    pub fn add_item(&mut self, item: &models::Item) -> anyhow::Result<()> {
         let item_url = url::artifact_short(&item.id)?;
         let item_iri = Iri::from_web_url(&item_url);
 
@@ -243,6 +251,14 @@ impl ModelSerializer {
             Predicate::Type,
             NS.schema.get("CreativeWork"),
         );
+
+        if self.include_private_terms {
+            self.graph.insert(
+                item_iri.clone(),
+                NS.ace.get("slug"),
+                Literal::from(item.slug.to_string()),
+            );
+        }
 
         self.graph.insert(
             item_iri.clone(),
@@ -392,5 +408,9 @@ impl ModelSerializer {
         }
 
         Ok(())
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        self.graph.to_json()
     }
 }

@@ -15,6 +15,7 @@ use super::{
     config,
     hugo::{CollectionMetadata, Item, Tag},
     omeka,
+    rdf::{ModelOptions, ModelSerializer},
     resolver::{CanonicalUrl, MediaLocator, Resolver},
 };
 
@@ -26,6 +27,7 @@ pub fn new() -> Router {
         .route("/media/r/{id}/{*filename}", get(get_media_raw))
         .route("/hugo-items", get(get_hugo_items))
         .route("/hugo-metadata", get(get_hugo_metadata))
+        .route("/jsonld", get(get_jsonld))
         .route("/assets/style.css", get(get_asset_style))
         .route("/assets/script.js", get(get_asset_script))
 }
@@ -163,6 +165,34 @@ async fn get_hugo_metadata() -> Result<Json<CollectionMetadata>, StatusCode> {
             .map(Tag::from)
             .collect(),
     }))
+}
+
+#[axum::debug_handler]
+async fn get_jsonld() -> Result<impl IntoResponse, StatusCode> {
+    let client = reqwest::Client::new();
+    let omeka_client = omeka::Client::from_config(client.clone())
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+    let resolver = Resolver::new(omeka_client);
+
+    let items = resolver
+        .list_all_items()
+        .await
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+
+    let mut serializer = ModelSerializer::new(ModelOptions {
+        include_private_terms: true,
+    });
+
+    for item in &items {
+        serializer
+            .add_item(item)
+            .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+    }
+
+    Ok((
+        [("Content-Type", "application/ld+json")],
+        Json(serializer.to_json()),
+    ))
 }
 
 #[axum::debug_handler]

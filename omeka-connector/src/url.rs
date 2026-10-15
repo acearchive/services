@@ -61,22 +61,6 @@ pub fn person(name: &str) -> anyhow::Result<reqwest::Url> {
     ))?)
 }
 
-pub fn decade(decade: u32) -> anyhow::Result<reqwest::Url> {
-    Ok(reqwest::Url::parse(&format!(
-        "https://{}/decades/{}",
-        config::base_domain()?,
-        slugify(decade.to_string().as_str())
-    ))?)
-}
-
-pub fn identity(name: &str) -> anyhow::Result<reqwest::Url> {
-    Ok(reqwest::Url::parse(&format!(
-        "https://{}/identities/{}",
-        config::base_domain()?,
-        slugify(name)
-    ))?)
-}
-
 pub fn collection(name: &str) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/collections/{}",

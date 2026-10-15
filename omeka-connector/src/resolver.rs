@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::{
-    cache, config,
+    cache,
     models::{Collection, File, Identity, Item, Lang, Link, Person},
     omeka,
 };

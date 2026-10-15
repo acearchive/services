@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use serde::Serialize;
 use serde_json::{Map as JsonMap, Value as JsonValue, json};
 
 use super::graph::{Context, Graph, Literal, Object, Predicate, Subject};
@@ -83,16 +82,24 @@ impl<C> Graph<C> {
         let mut predicates_by_subject = HashMap::new();
         let mut objects_by_subject_predicate = HashMap::new();
 
+        // The same triple may be inserted more than once, such as when multiple items reference the
+        // same collection, so we deduplicate here while preserving insertion order.
         for triple in &self.triples {
-            predicates_by_subject
+            let predicates = predicates_by_subject
                 .entry(&triple.s)
-                .or_insert_with(Vec::new)
-                .push(&triple.p);
+                .or_insert_with(Vec::new);
 
-            objects_by_subject_predicate
+            if !predicates.contains(&&triple.p) {
+                predicates.push(&triple.p);
+            }
+
+            let objects = objects_by_subject_predicate
                 .entry((&triple.s, &triple.p))
-                .or_insert_with(Vec::new)
-                .push(&triple.o);
+                .or_insert_with(Vec::new);
+
+            if !objects.contains(&&triple.o) {
+                objects.push(&triple.o);
+            }
         }
 
         predicates_by_subject
