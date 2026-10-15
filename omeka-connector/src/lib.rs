@@ -3,6 +3,7 @@
 mod assets;
 mod cache;
 pub mod config;
+mod hugo;
 mod logger;
 mod models;
 mod omeka;

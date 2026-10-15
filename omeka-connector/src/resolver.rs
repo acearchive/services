@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     cache, config,
-    models::{File, Item, Link, Tag, TagKind},
+    hugo::{File, Item, Link, Tag, TagKind},
     omeka,
 };
 

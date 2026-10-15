@@ -163,3 +163,7 @@ impl<C> Graph<C> {
         });
     }
 }
+
+pub trait ToGraph<C> {
+    fn to_graph(&self, graph: &mut Graph<C>);
+}

@@ -13,7 +13,7 @@ use super::{
     assets::render_css,
     assets::{FilePage, FilePageContext},
     config,
-    models::{CollectionMetadata, Item},
+    hugo::{CollectionMetadata, Item},
     omeka,
     resolver::{CanonicalUrl, MediaLocator, Resolver},
 };
