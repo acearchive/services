@@ -201,8 +201,13 @@ impl ModelSerializer {
             file_iri.clone(),
         );
 
-        self.graph
-            .insert(file_iri.clone(), Predicate::Type, NS.dctype.get("Text"));
+        if let Some(dcmi_type) = file.dcmi_type {
+            self.graph.insert(
+                file_iri.clone(),
+                Predicate::Type,
+                NS.dctype.get(dcmi_type.local_name()),
+            );
+        }
         self.graph.insert(
             file_iri.clone(),
             Predicate::Type,
@@ -246,8 +251,13 @@ impl ModelSerializer {
         let item_url = url::artifact_short(&item.id)?;
         let item_iri = Iri::from_web_url(&item_url);
 
-        self.graph
-            .insert(item_iri.clone(), Predicate::Type, NS.dctype.get("Text"));
+        if let Some(dcmi_type) = item.dcmi_type {
+            self.graph.insert(
+                item_iri.clone(),
+                Predicate::Type,
+                NS.dctype.get(dcmi_type.local_name()),
+            );
+        }
         self.graph.insert(
             item_iri.clone(),
             Predicate::Type,

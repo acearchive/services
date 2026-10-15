@@ -421,6 +421,7 @@ impl Resolver {
                 // Optional single-value properties.
                 let description = item_response
                     .maybe_localized(omeka::Property::Description, |i| &i.description);
+                let dcmi_type = item_response.dcmi_type();
 
                 // Multi-value properties.
                 let people = item_response
@@ -503,6 +504,7 @@ impl Resolver {
                         Some(File {
                             title: media.maybe_localized(omeka::Property::Title, |m| &m.title)?,
                             filename,
+                            dcmi_type: media.dcmi_type(),
                             media_type: media.media_type.clone(),
                             lang: media.lang.clone().map(Lang::new),
                         })
@@ -512,6 +514,7 @@ impl Resolver {
                 Some(Item {
                     id,
                     slug,
+                    dcmi_type,
                     title,
                     description,
                     summary,

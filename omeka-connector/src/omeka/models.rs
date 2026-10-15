@@ -3,7 +3,7 @@ use std::fmt;
 use serde::Deserialize;
 
 use super::property::{AceFilename, AceId, AceSlug, InternalId, Property, ResourceType};
-use crate::models::{Lang, LocalizedString};
+use crate::models::{DcmiType, Lang, LocalizedString};
 
 /// An error signaling that a resource should be skipped because it is missing required data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,6 +17,16 @@ impl fmt::Display for SkipError {
 
 impl std::error::Error for SkipError {}
 
+impl ResourceType {
+    fn label(&self) -> &'static str {
+        match self {
+            ResourceType::Item => "Item",
+            ResourceType::ItemSet => "Item set",
+            ResourceType::Media => "Media",
+        }
+    }
+}
+
 fn expect_one<T>(
     resource_type: ResourceType,
     internal_id: InternalId,
@@ -26,11 +36,7 @@ fn expect_one<T>(
 where
     T: fmt::Display + Clone,
 {
-    let resource_type_label = match resource_type {
-        ResourceType::Item => "Item",
-        ResourceType::ItemSet => "Item set",
-        ResourceType::Media => "Media",
-    };
+    let resource_type_label = resource_type.label();
 
     if values.len() > 1 {
         let value = values.first().unwrap();
@@ -68,11 +74,7 @@ fn maybe_one<T>(
 where
     T: fmt::Display + Clone,
 {
-    let resource_type_label = match resource_type {
-        ResourceType::Item => "Item",
-        ResourceType::ItemSet => "Item set",
-        ResourceType::Media => "Media",
-    };
+    let resource_type_label = resource_type.label();
 
     if values.len() > 1 {
         let value = values.first().unwrap();
@@ -87,6 +89,55 @@ where
     }
 
     values.first().cloned()
+}
+
+fn dcmi_type(
+    resource_type: ResourceType,
+    internal_id: InternalId,
+    json_ld_type: &JsonLdType,
+) -> Option<DcmiType> {
+    let term = json_ld_type.resource_class()?;
+
+    let dcmi_type = term
+        .strip_prefix("dctype:")
+        .and_then(DcmiType::from_local_name);
+
+    if dcmi_type.is_none() {
+        log::warn!(
+            "{} with internal ID `{}` has resource class `{}`, which is not a DCMI type. Ignoring it.",
+            resource_type.label(),
+            internal_id,
+            term,
+        );
+    }
+
+    dcmi_type
+}
+
+/// The JSON-LD `@type` of an Omeka resource.
+///
+/// Omeka always includes its own type (e.g. `o:Item`). If the resource has a resource class, that
+/// is included as well, in which case this is an array rather than a single value.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum JsonLdType {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl JsonLdType {
+    /// Return the term of the resource class (e.g. `dctype:Text`), if there is one.
+    pub fn resource_class(&self) -> Option<&str> {
+        let types = match self {
+            JsonLdType::One(term) => std::slice::from_ref(term),
+            JsonLdType::Many(terms) => terms.as_slice(),
+        };
+
+        types
+            .iter()
+            .map(String::as_str)
+            .find(|term| !term.starts_with("o:"))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -153,6 +204,9 @@ pub struct ItemResponse {
     #[serde(rename = "o:id")]
     pub internal_id: InternalId,
 
+    #[serde(rename = "@type")]
+    pub json_ld_type: JsonLdType,
+
     #[serde(default, rename = "ace:id")]
     pub id: Vec<LiteralPropertyValue<AceId>>,
 
@@ -191,6 +245,10 @@ pub struct ItemResponse {
 }
 
 impl ItemResponse {
+    pub fn dcmi_type(&self) -> Option<DcmiType> {
+        dcmi_type(ResourceType::Item, self.internal_id, &self.json_ld_type)
+    }
+
     pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>
     where
         T: fmt::Display + Clone,
@@ -247,6 +305,9 @@ pub struct MediaResponse {
     #[serde(rename = "o:id")]
     pub internal_id: InternalId,
 
+    #[serde(rename = "@type")]
+    pub json_ld_type: JsonLdType,
+
     #[serde(rename = "o:original_url")]
     pub original_url: String,
 
@@ -264,6 +325,10 @@ pub struct MediaResponse {
 }
 
 impl MediaResponse {
+    pub fn dcmi_type(&self) -> Option<DcmiType> {
+        dcmi_type(ResourceType::Media, self.internal_id, &self.json_ld_type)
+    }
+
     pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>
     where
         T: fmt::Display + Clone,
