@@ -1,5 +1,5 @@
-use super::graph::{Context, Graph, Iri, Lang, Literal, Namespace, Object, ToGraph};
-use crate::models;
+use super::graph::{Context, Graph, Iri, Lang, Literal, Namespace, Object, Predicate};
+use crate::{models, omeka, url};
 
 #[derive(Debug, Clone)]
 pub struct ModelContext {
@@ -51,11 +51,60 @@ impl From<models::LocalizedString> for Object {
     }
 }
 
-impl<C> ToGraph<C> for models::Link {
-    fn to_graph(&self, graph: &mut Graph<C>) {
-        let iri = Iri::new(self.url.to_string());
+impl<C> Graph<C> {
+    fn add_link(&mut self, link: &models::Link) {
+        let iri = Iri::new(link.url.to_string());
 
-        graph.insert(iri.clone(), CTX.dcterms.get("title"), self.title.clone());
-        graph.insert(iri, CTX.schema.get("name"), self.title.clone());
+        self.insert(iri.clone(), CTX.dcterms.get("title"), link.title.clone());
+        self.insert(iri, CTX.schema.get("name"), link.title.clone());
+    }
+
+    fn add_file(&mut self, file: &models::File, id: &omeka::AceId) -> anyhow::Result<()> {
+        let file_iri = Iri::new(url::file_raw(id, &file.filename)?.to_string());
+        let item_iri = Iri::from_web_url(&url::artifact_short(id)?);
+
+        self.insert(
+            file_iri.clone(),
+            CTX.schema.get("contentUrl"),
+            file_iri.clone(),
+        );
+
+        self.insert(file_iri.clone(), Predicate::Type, CTX.dctype.get("Text"));
+        self.insert(
+            file_iri.clone(),
+            Predicate::Type,
+            CTX.schema.get("MediaObject"),
+        );
+
+        self.insert(
+            file_iri.clone(),
+            CTX.dcterms.get("format"),
+            Literal::from(file.media_type.clone()),
+        );
+        self.insert(
+            file_iri.clone(),
+            CTX.schema.get("encodingFormat"),
+            Literal::from(file.media_type.clone()),
+        );
+
+        self.insert(
+            file_iri.clone(),
+            CTX.dcterms.get("title"),
+            file.title.clone(),
+        );
+        self.insert(file_iri.clone(), CTX.schema.get("name"), file.title.clone());
+
+        self.insert(
+            file_iri.clone(),
+            CTX.dcterms.get("isFormatOf"),
+            item_iri.clone(),
+        );
+        self.insert(
+            file_iri.clone(),
+            CTX.schema.get("encodesCreativeWork"),
+            item_iri,
+        );
+
+        Ok(())
     }
 }

@@ -5,6 +5,7 @@ use super::{
     hugo::{File, Item, Link, Tag, TagKind},
     omeka,
 };
+use crate::url;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum MediaLocator {
@@ -32,36 +33,12 @@ impl MediaLocator {
     }
 
     pub fn to_url(&self) -> anyhow::Result<reqwest::Url> {
-        let mut url = config::files_url()?;
-
-        {
-            let mut path_segments = url
-                .path_segments_mut()
-                .map_err(|_| anyhow::anyhow!("Failed to get path segments from files URL."))?;
-
-            match self {
-                MediaLocator::Long { slug, filename } => {
-                    path_segments.extend(["artifacts", slug.as_ref(), filename.as_ref()]);
-                }
-                MediaLocator::Short { id, filename } => {
-                    path_segments.extend(["a", id.as_ref(), filename.as_ref()]);
-                }
-                MediaLocator::Raw { id, filename } => {
-                    path_segments.extend(["r", id.as_ref(), filename.as_ref()]);
-                }
-            }
-        }
-
-        Ok(url)
+        Ok(match self {
+            MediaLocator::Long { slug, filename } => url::file_long(slug, filename)?,
+            MediaLocator::Short { id, filename } => url::file_short(id, filename)?,
+            MediaLocator::Raw { id, filename } => url::file_raw(id, filename)?,
+        })
     }
-}
-
-fn page_url(slug: &omeka::AceSlug) -> anyhow::Result<reqwest::Url> {
-    Ok(reqwest::Url::parse(&format!(
-        "https://{}/artifacts/{}",
-        config::base_domain()?,
-        slug.as_ref()
-    ))?)
 }
 
 #[derive(Debug, Clone)]
@@ -277,7 +254,7 @@ impl Resolver {
                     },
                     media_type: media_response.media_type.clone(),
                     filename: canonical_filename.clone(),
-                    page_url: page_url(&canonical_slug)?,
+                    page_url: url::artifact_long(&canonical_slug)?,
                     raw_url: MediaLocator::Raw {
                         id: id.clone(),
                         filename: canonical_filename.clone(),
@@ -338,7 +315,7 @@ impl Resolver {
                     },
                     media_type: media_response.media_type.clone(),
                     filename: canonical_filename.clone(),
-                    page_url: page_url(&canonical_slug)?,
+                    page_url: url::artifact_long(&canonical_slug)?,
                     raw_url: MediaLocator::Raw {
                         id: id.clone(),
                         filename: canonical_filename.clone(),

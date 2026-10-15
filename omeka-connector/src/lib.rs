@@ -10,6 +10,7 @@ mod omeka;
 mod rdf;
 mod resolver;
 mod router;
+mod url;
 
 pub use config::init_config;
 pub use logger::init_logger;
