@@ -1,8 +1,9 @@
-use serde::Serialize;
+use std::fs;
 
 use super::graph::{Context, Graph, Iri, Namespace, Predicate};
+use crate::config;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ModelContext {
     dcterms: Namespace,
     dctype: Namespace,
@@ -31,7 +32,7 @@ impl Context for ModelContext {
     }
 }
 
-pub fn build() -> Graph<ModelContext> {
+fn build() -> Graph<ModelContext> {
     let mut graph = Graph::new(CTX);
 
     const ID: &str = "MKbNWmmhCog6";
@@ -126,4 +127,16 @@ pub fn build() -> Graph<ModelContext> {
     );
 
     graph
+}
+
+pub fn generate() -> anyhow::Result<()> {
+    let graph = build();
+
+    let scratch_dir = config::scratch_dir()?;
+    let jsonld_path = scratch_dir.join("archive.json");
+
+    let file = fs::File::create(jsonld_path)?;
+    serde_json::to_writer_pretty(file, &graph)?;
+
+    Ok(())
 }

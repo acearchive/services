@@ -12,4 +12,5 @@ mod router;
 
 pub use config::init_config;
 pub use logger::init_logger;
+pub use rdf::generate as generate_rdf;
 pub use router::new as router;

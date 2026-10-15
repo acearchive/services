@@ -1,8 +1,6 @@
-use std::{borrow::Cow, fmt};
+use std::{borrow::Cow, collections::HashMap, fmt};
 
-use serde::Serialize;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Iri(Cow<'static, str>);
 
 impl Iri {
@@ -69,29 +67,31 @@ impl From<&'static str> for Object {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone)]
 pub struct Namespace {
-    #[serde(skip)]
-    prefix: Cow<'static, str>,
-    ns: Cow<'static, str>,
+    pub prefix: Cow<'static, str>,
+    pub namespace: Cow<'static, str>,
 }
 
 impl Namespace {
     pub const fn from_static(prefix: &'static str, ns: &'static str) -> Self {
         Self {
             prefix: Cow::Borrowed(prefix),
-            ns: Cow::Borrowed(ns),
+            namespace: Cow::Borrowed(ns),
         }
     }
 
-    pub fn get(&self, name: &str) -> Iri {
-        Iri::new(format!("{}:{}", self.prefix, name))
+    pub fn get<S: AsRef<str>>(&self, name: S) -> Iri {
+        Iri::new(format!("{}:{}", self.prefix, name.as_ref()))
     }
 }
 
 pub trait Context {
     fn namespaces(&self) -> Vec<&Namespace>;
+
+    fn types(&self) -> HashMap<Iri, Iri> {
+        Default::default()
+    }
 }
 
 #[derive(Debug, Clone)]
