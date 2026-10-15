@@ -63,50 +63,36 @@ impl<C> Graph<C> {
         self.insert(link_iri, CTX.schema.get("name"), link.title.clone());
     }
 
-    fn add_file(&mut self, file: &models::File, id: &omeka::AceId) -> anyhow::Result<()> {
-        let file_iri = Iri::new(url::file_raw(id, &file.filename)?.to_string());
-        let item_iri = Iri::from_web_url(&url::artifact_short(id)?);
+    fn add_person(&mut self, person: &models::Person) -> anyhow::Result<()> {
+        let person_url = url::person(&person.name)?;
+        let person_iri = Iri::from_web_url(&person_url);
 
         self.insert(
-            file_iri.clone(),
-            CTX.schema.get("contentUrl"),
-            file_iri.clone(),
-        );
-
-        self.insert(file_iri.clone(), Predicate::Type, CTX.dctype.get("Text"));
-        self.insert(
-            file_iri.clone(),
+            person_iri.clone(),
             Predicate::Type,
-            CTX.schema.get("MediaObject"),
+            CTX.dcterms.get("Agent"),
+        );
+        self.insert(
+            person_iri.clone(),
+            Predicate::Type,
+            CTX.schema.get("Person"),
         );
 
         self.insert(
-            file_iri.clone(),
-            CTX.dcterms.get("format"),
-            Literal::from(file.media_type.clone()),
-        );
-        self.insert(
-            file_iri.clone(),
-            CTX.schema.get("encodingFormat"),
-            Literal::from(file.media_type.clone()),
+            person_iri.clone(),
+            CTX.schema.get("url"),
+            Literal::from(person_url.to_string()),
         );
 
         self.insert(
-            file_iri.clone(),
+            person_iri.clone(),
             CTX.dcterms.get("title"),
-            file.title.clone(),
-        );
-        self.insert(file_iri.clone(), CTX.schema.get("name"), file.title.clone());
-
-        self.insert(
-            file_iri.clone(),
-            CTX.dcterms.get("isFormatOf"),
-            item_iri.clone(),
+            Literal::from(person.name.clone()),
         );
         self.insert(
-            file_iri.clone(),
-            CTX.schema.get("encodesCreativeWork"),
-            item_iri,
+            person_iri,
+            CTX.schema.get("name"),
+            Literal::from(person.name.clone()),
         );
 
         Ok(())
@@ -156,6 +142,55 @@ impl<C> Graph<C> {
                 description.clone(),
             );
         }
+
+        Ok(())
+    }
+
+    fn add_file(&mut self, file: &models::File, id: &omeka::AceId) -> anyhow::Result<()> {
+        let file_iri = Iri::new(url::file_raw(id, &file.filename)?.to_string());
+        let item_iri = Iri::from_web_url(&url::artifact_short(id)?);
+
+        self.insert(
+            file_iri.clone(),
+            CTX.schema.get("contentUrl"),
+            file_iri.clone(),
+        );
+
+        self.insert(file_iri.clone(), Predicate::Type, CTX.dctype.get("Text"));
+        self.insert(
+            file_iri.clone(),
+            Predicate::Type,
+            CTX.schema.get("MediaObject"),
+        );
+
+        self.insert(
+            file_iri.clone(),
+            CTX.dcterms.get("format"),
+            Literal::from(file.media_type.clone()),
+        );
+        self.insert(
+            file_iri.clone(),
+            CTX.schema.get("encodingFormat"),
+            Literal::from(file.media_type.clone()),
+        );
+
+        self.insert(
+            file_iri.clone(),
+            CTX.dcterms.get("title"),
+            file.title.clone(),
+        );
+        self.insert(file_iri.clone(), CTX.schema.get("name"), file.title.clone());
+
+        self.insert(
+            file_iri.clone(),
+            CTX.dcterms.get("isFormatOf"),
+            item_iri.clone(),
+        );
+        self.insert(
+            file_iri.clone(),
+            CTX.schema.get("encodesCreativeWork"),
+            item_iri,
+        );
 
         Ok(())
     }
