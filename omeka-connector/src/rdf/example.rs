@@ -37,7 +37,7 @@ impl Context for ModelContext {
 fn build() -> Graph<ModelContext> {
     let mut graph = Graph::new(CTX);
 
-    const ARTIFACT_IRI: Iri = Iri::from_static("https://acearchive.lgbt/a/MKbNWmmhCog6");
+    const ARTIFACT_IRI: Iri = Iri::from_static("https://acearchive.lgbt/a/MKbNWmmhCog6#this");
 
     graph.insert(ARTIFACT_IRI, Predicate::Type, CTX.dctype.get("Text"));
     graph.insert(
@@ -111,30 +111,30 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         ARTIFACT_IRI,
         CTX.dcterms.get("isPartOf"),
-        Iri::new("https://acearchive.lgbt/collections/newsjournals-and-underground-press/"),
+        Iri::new("https://acearchive.lgbt/collections/newsjournals-and-underground-press#this"),
     );
     graph.insert(
-        Iri::new("https://acearchive.lgbt/collections/newsjournals-and-underground-press/"),
+        Iri::new("https://acearchive.lgbt/collections/newsjournals-and-underground-press#this"),
         Predicate::Type,
         CTX.dctype.get("Collection"),
     );
     graph.insert(
-        Iri::new("https://acearchive.lgbt/collections/newsjournals-and-underground-press/"),
+        Iri::new("https://acearchive.lgbt/collections/newsjournals-and-underground-press#this"),
         CTX.dcterms.get("title"),
         ("News Journals and Underground Press".into(), EN),
     );
     graph.insert(
         ARTIFACT_IRI,
         CTX.dcterms.get("creator"),
-        Iri::new("https://acearchive.lgbt/people/lisa-orlando/"),
+        Iri::new("https://acearchive.lgbt/people/lisa-orlando#this"),
     );
     graph.insert(
-        Iri::new("https://acearchive.lgbt/people/lisa-orlando/"),
+        Iri::new("https://acearchive.lgbt/people/lisa-orlando#this"),
         Predicate::Type,
         CTX.schema.get("Person"),
     );
     graph.insert(
-        Iri::new("https://acearchive.lgbt/people/lisa-orlando/"),
+        Iri::new("https://acearchive.lgbt/people/lisa-orlando#this"),
         CTX.schema.get("name"),
         Literal::from("Lisa Orlando"),
     );
