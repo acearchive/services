@@ -191,7 +191,11 @@ async fn get_jsonld() -> Result<impl IntoResponse, StatusCode> {
 
     Ok((
         [("Content-Type", "application/ld+json")],
-        Json(serializer.to_json()),
+        Json(
+            serializer
+                .into_json()
+                .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
+        ),
     ))
 }
 
