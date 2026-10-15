@@ -118,7 +118,7 @@ impl<C> Graph<C>
 where
     C: Context,
 {
-    fn serialize(&self) -> JsonValue {
+    pub fn to_json(&self) -> JsonValue {
         let subjects = self.by_subject();
         let json_subjects: Vec<JsonValue> = subjects.iter().map(|s| s.serialize()).collect();
 
@@ -143,18 +143,5 @@ where
         graph_map.insert("@graph".to_string(), JsonValue::Array(json_subjects));
 
         JsonValue::Object(graph_map)
-    }
-}
-
-impl<C> Serialize for Graph<C>
-where
-    C: Context,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let json_value = self.serialize();
-        json_value.serialize(serializer)
     }
 }

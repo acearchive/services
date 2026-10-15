@@ -280,7 +280,7 @@ pub fn generate() -> anyhow::Result<()> {
     let jsonld_path = scratch_dir.join("archive.json");
 
     let file = fs::File::create(jsonld_path)?;
-    serde_json::to_writer_pretty(file, &graph)?;
+    serde_json::to_writer_pretty(file, &graph.to_json())?;
 
     Ok(())
 }
