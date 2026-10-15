@@ -1,3 +1,5 @@
+use strip_markdown::strip_markdown;
+
 use super::graph::{Context, Graph, Iri, Lang, Literal, Namespace, Object, Predicate};
 use crate::{models, omeka, url};
 
@@ -277,48 +279,63 @@ impl ModelSerializer {
             Iri::new(item_url.to_string()),
         );
 
+        let stripped_title = models::LocalizedString {
+            value: strip_markdown(&item.title.value),
+            lang: item.title.lang.clone(),
+        };
+
         self.graph.insert(
             item_iri.clone(),
             NS.dcterms.get("title"),
-            item.title.clone(),
+            stripped_title.clone(),
         );
         self.graph
-            .insert(item_iri.clone(), NS.schema.get("name"), item.title.clone());
+            .insert(item_iri.clone(), NS.schema.get("name"), stripped_title);
+
+        let stripped_abstract = models::LocalizedString {
+            value: strip_markdown(&item.summary.value),
+            lang: item.summary.lang.clone(),
+        };
 
         if let Some(description) = &item.description
             && description != &item.summary
         {
+            let stripped_description = models::LocalizedString {
+                value: strip_markdown(&description.value),
+                lang: description.lang.clone(),
+            };
+
             self.graph.insert(
                 item_iri.clone(),
                 NS.dcterms.get("description"),
-                description.clone(),
+                stripped_description.clone(),
             );
             self.graph.insert(
                 item_iri.clone(),
                 NS.schema.get("description"),
-                description.clone(),
+                stripped_description,
             );
 
             self.graph.insert(
                 item_iri.clone(),
                 NS.dcterms.get("abstract"),
-                item.summary.clone(),
+                stripped_abstract.clone(),
             );
             self.graph.insert(
                 item_iri.clone(),
                 NS.schema.get("abstract"),
-                item.summary.clone(),
+                stripped_abstract,
             );
         } else {
             self.graph.insert(
                 item_iri.clone(),
                 NS.dcterms.get("description"),
-                item.summary.clone(),
+                stripped_abstract.clone(),
             );
             self.graph.insert(
                 item_iri.clone(),
                 NS.schema.get("description"),
-                item.summary.clone(),
+                stripped_abstract,
             );
         }
 
