@@ -309,10 +309,9 @@ impl ModelSerializer {
             item.summary.clone(),
         );
 
-        let year_range = if let Some(to_year) = item.to_year {
-            format!("{}/{}", item.from_year, to_year)
-        } else {
-            item.from_year.to_string()
+        let year_range = match item.to_year {
+            Some(to_year) if to_year != item.from_year => format!("{}/{}", item.from_year, to_year),
+            Some(_) | None => item.from_year.to_string(),
         };
 
         self.graph.insert(
