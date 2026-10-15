@@ -285,7 +285,9 @@ impl ModelSerializer {
         self.graph
             .insert(item_iri.clone(), NS.schema.get("name"), item.title.clone());
 
-        if let Some(description) = &item.description {
+        if let Some(description) = &item.description
+            && description != &item.summary
+        {
             self.graph.insert(
                 item_iri.clone(),
                 NS.dcterms.get("description"),
@@ -296,18 +298,29 @@ impl ModelSerializer {
                 NS.schema.get("description"),
                 description.clone(),
             );
-        }
 
-        self.graph.insert(
-            item_iri.clone(),
-            NS.dcterms.get("abstract"),
-            item.summary.clone(),
-        );
-        self.graph.insert(
-            item_iri.clone(),
-            NS.schema.get("abstract"),
-            item.summary.clone(),
-        );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.dcterms.get("abstract"),
+                item.summary.clone(),
+            );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("abstract"),
+                item.summary.clone(),
+            );
+        } else {
+            self.graph.insert(
+                item_iri.clone(),
+                NS.dcterms.get("description"),
+                item.summary.clone(),
+            );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("description"),
+                item.summary.clone(),
+            );
+        }
 
         let year_range = match item.to_year {
             Some(to_year) if to_year != item.from_year => format!("{}/{}", item.from_year, to_year),
@@ -337,7 +350,7 @@ impl ModelSerializer {
                 identity_object.clone(),
             );
             self.graph
-                .insert(item_iri.clone(), NS.schema.get("about"), identity_object);
+                .insert(item_iri.clone(), NS.schema.get("keywords"), identity_object);
         }
 
         for link in &item.links {

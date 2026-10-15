@@ -17,7 +17,7 @@ impl fmt::Display for Lang {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalizedString {
     pub value: String,
     pub lang: Option<Lang>,
