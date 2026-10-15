@@ -24,33 +24,39 @@ pub fn file_long(
     slug: &omeka::AceSlug,
     filename: &omeka::AceFilename,
 ) -> anyhow::Result<reqwest::Url> {
-    Ok(reqwest::Url::parse(&format!(
-        "{}/artifacts/{}/{}",
-        config::files_url()?,
-        slug,
-        filename
-    ))?)
+    let mut url = config::files_url()?;
+    url.path_segments_mut()
+        .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
+        .push("artifacts")
+        .push(slug.to_string().as_str())
+        .push(filename.to_string().as_str());
+
+    Ok(url)
 }
 
 pub fn file_short(
     id: &omeka::AceId,
     filename: &omeka::AceFilename,
 ) -> anyhow::Result<reqwest::Url> {
-    Ok(reqwest::Url::parse(&format!(
-        "{}/a/{}/{}",
-        config::files_url()?,
-        id,
-        filename
-    ))?)
+    let mut url = config::files_url()?;
+    url.path_segments_mut()
+        .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
+        .push("a")
+        .push(id.to_string().as_str())
+        .push(filename.to_string().as_str());
+
+    Ok(url)
 }
 
 pub fn file_raw(id: &omeka::AceId, filename: &omeka::AceFilename) -> anyhow::Result<reqwest::Url> {
-    Ok(reqwest::Url::parse(&format!(
-        "{}/r/{}/{}",
-        config::files_url()?,
-        id,
-        filename
-    ))?)
+    let mut url = config::files_url()?;
+    url.path_segments_mut()
+        .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
+        .push("r")
+        .push(id.to_string().as_str())
+        .push(filename.to_string().as_str());
+
+    Ok(url)
 }
 
 pub fn person(name: &str) -> anyhow::Result<reqwest::Url> {
