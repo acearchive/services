@@ -89,6 +89,9 @@ impl ModelSerializer {
         let link_iri = Iri::new(link.url.to_string());
 
         self.graph
+            .insert(link_iri.clone(), Predicate::Type, NS.schema.get("WebSite"));
+
+        self.graph
             .insert(link_iri, NS.schema.get("name"), link.title.clone());
     }
 
