@@ -3,7 +3,7 @@ use std::fmt;
 use serde::Deserialize;
 
 use super::property::{AceFilename, AceId, AceSlug, InternalId, Property, ResourceType};
-use crate::models::{DcmiType, Lang, LocalizedString};
+use crate::models::{Lang, LocalizedString, SchemaClass};
 
 /// An error signaling that a resource should be skipped because it is missing required data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,27 +91,33 @@ where
     values.first().cloned()
 }
 
-fn dcmi_type(
+fn schema_class(
     resource_type: ResourceType,
     internal_id: InternalId,
     json_ld_type: &JsonLdType,
-) -> Option<DcmiType> {
-    let term = json_ld_type.resource_class()?;
-
-    let dcmi_type = term
-        .strip_prefix("dctype:")
-        .and_then(DcmiType::from_local_name);
-
-    if dcmi_type.is_none() {
+) -> Option<SchemaClass> {
+    let Some(term) = json_ld_type.resource_class() else {
         log::warn!(
-            "{} with internal ID `{}` has resource class `{}`, which is not a DCMI type. Ignoring it.",
+            "{} with internal ID `{}` has no resource class.",
+            resource_type.label(),
+            internal_id,
+        );
+
+        return None;
+    };
+
+    let schema_class = term.strip_prefix("schema:").map(SchemaClass::new);
+
+    if schema_class.is_none() {
+        log::warn!(
+            "{} with internal ID `{}` has resource class `{}`, which is not a Schema.org class. Ignoring it.",
             resource_type.label(),
             internal_id,
             term,
         );
     }
 
-    dcmi_type
+    schema_class
 }
 
 /// The JSON-LD `@type` of an Omeka resource.
@@ -126,7 +132,7 @@ pub enum JsonLdType {
 }
 
 impl JsonLdType {
-    /// Return the term of the resource class (e.g. `dctype:Text`), if there is one.
+    /// Return the term of the resource class (e.g. `schema:CreativeWork`), if there is one.
     pub fn resource_class(&self) -> Option<&str> {
         let types = match self {
             JsonLdType::One(term) => std::slice::from_ref(term),
@@ -245,8 +251,8 @@ pub struct ItemResponse {
 }
 
 impl ItemResponse {
-    pub fn dcmi_type(&self) -> Option<DcmiType> {
-        dcmi_type(ResourceType::Item, self.internal_id, &self.json_ld_type)
+    pub fn schema_class(&self) -> Option<SchemaClass> {
+        schema_class(ResourceType::Item, self.internal_id, &self.json_ld_type)
     }
 
     pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>
@@ -277,6 +283,9 @@ pub struct ItemSetResponse {
     #[serde(rename = "o:id")]
     pub internal_id: InternalId,
 
+    #[serde(rename = "@type")]
+    pub json_ld_type: JsonLdType,
+
     #[serde(rename = "dcterms:title")]
     pub title: Vec<LiteralPropertyValue<String>>,
 
@@ -285,6 +294,10 @@ pub struct ItemSetResponse {
 }
 
 impl ItemSetResponse {
+    pub fn schema_class(&self) -> Option<SchemaClass> {
+        schema_class(ResourceType::ItemSet, self.internal_id, &self.json_ld_type)
+    }
+
     pub fn expect_localized<F>(&self, property: Property, f: F) -> anyhow::Result<LocalizedString>
     where
         F: FnOnce(&ItemSetResponse) -> &[LiteralPropertyValue<String>],
@@ -325,8 +338,8 @@ pub struct MediaResponse {
 }
 
 impl MediaResponse {
-    pub fn dcmi_type(&self) -> Option<DcmiType> {
-        dcmi_type(ResourceType::Media, self.internal_id, &self.json_ld_type)
+    pub fn schema_class(&self) -> Option<SchemaClass> {
+        schema_class(ResourceType::Media, self.internal_id, &self.json_ld_type)
     }
 
     pub fn expect_one<T, F>(&self, property: Property, f: F) -> anyhow::Result<T>

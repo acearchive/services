@@ -23,59 +23,17 @@ pub struct LocalizedString {
     pub lang: Option<Lang>,
 }
 
-/// A class from the DCMI Type Vocabulary.
-///
-/// https://www.dublincore.org/specifications/dublin-core/dcmi-type-vocabulary/
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DcmiType {
-    Collection,
-    Dataset,
-    Event,
-    Image,
-    InteractiveResource,
-    MovingImage,
-    PhysicalObject,
-    Service,
-    Software,
-    Sound,
-    StillImage,
-    Text,
-}
+/// A class from the Schema.org vocabulary, identified by its local name (e.g. `CreativeWork`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SchemaClass(String);
 
-impl DcmiType {
-    pub fn from_local_name(name: &str) -> Option<Self> {
-        Some(match name {
-            "Collection" => DcmiType::Collection,
-            "Dataset" => DcmiType::Dataset,
-            "Event" => DcmiType::Event,
-            "Image" => DcmiType::Image,
-            "InteractiveResource" => DcmiType::InteractiveResource,
-            "MovingImage" => DcmiType::MovingImage,
-            "PhysicalObject" => DcmiType::PhysicalObject,
-            "Service" => DcmiType::Service,
-            "Software" => DcmiType::Software,
-            "Sound" => DcmiType::Sound,
-            "StillImage" => DcmiType::StillImage,
-            "Text" => DcmiType::Text,
-            _ => return None,
-        })
+impl SchemaClass {
+    pub fn new<S: Into<String>>(local_name: S) -> Self {
+        SchemaClass(local_name.into())
     }
 
-    pub fn local_name(&self) -> &'static str {
-        match self {
-            DcmiType::Collection => "Collection",
-            DcmiType::Dataset => "Dataset",
-            DcmiType::Event => "Event",
-            DcmiType::Image => "Image",
-            DcmiType::InteractiveResource => "InteractiveResource",
-            DcmiType::MovingImage => "MovingImage",
-            DcmiType::PhysicalObject => "PhysicalObject",
-            DcmiType::Service => "Service",
-            DcmiType::Software => "Software",
-            DcmiType::Sound => "Sound",
-            DcmiType::StillImage => "StillImage",
-            DcmiType::Text => "Text",
-        }
+    pub fn local_name(&self) -> &str {
+        &self.0
     }
 }
 
@@ -83,7 +41,7 @@ impl DcmiType {
 pub struct File {
     pub title: LocalizedString,
     pub filename: AceFilename,
-    pub dcmi_type: Option<DcmiType>,
+    pub schema_class: Option<SchemaClass>,
     pub media_type: String,
     // The language of the file's contents, which may differ from the language of its title.
     pub lang: Option<Lang>,
@@ -111,6 +69,7 @@ pub struct Identity {
 
 #[derive(Debug, Clone)]
 pub struct Collection {
+    pub schema_class: Option<SchemaClass>,
     pub title: LocalizedString,
     pub description: Option<LocalizedString>,
 }
@@ -120,7 +79,7 @@ pub struct Item {
     pub id: AceId,
     pub slug: AceSlug,
     pub aliases: Vec<AceSlug>,
-    pub dcmi_type: Option<DcmiType>,
+    pub schema_class: Option<SchemaClass>,
     pub title: LocalizedString,
     pub summary: LocalizedString,
     pub description: Option<LocalizedString>,

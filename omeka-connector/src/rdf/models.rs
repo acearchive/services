@@ -5,14 +5,12 @@ use crate::{models, omeka, url};
 
 #[derive(Debug, Clone)]
 struct Namespaces {
-    dctype: Namespace,
     schema: Namespace,
     rdfs: Namespace,
     ace: Namespace,
 }
 
 const NS: Namespaces = Namespaces {
-    dctype: Namespace::from_static("dctype", "http://purl.org/dc/dcmitype/"),
     schema: Namespace::from_static("schema", "https://schema.org/"),
     rdfs: Namespace::from_static("rdfs", "http://www.w3.org/2000/01/rdf-schema#"),
     ace: Namespace::from_static("ace", "https://acearchive.lgbt/terms/"),
@@ -26,7 +24,7 @@ struct ModelContext {
 
 impl Context for ModelContext {
     fn namespaces(&self) -> Vec<&Namespace> {
-        let mut terms = vec![&self.ns.dctype, &self.ns.schema, &self.ns.rdfs];
+        let mut terms = vec![&self.ns.schema, &self.ns.rdfs];
 
         if self.include_private_terms {
             terms.push(&self.ns.ace);
@@ -162,11 +160,13 @@ impl ModelSerializer {
         let collection_url = url::collection(&collection.title.value)?;
         let collection_iri = Iri::from_web_url(&collection_url);
 
-        self.graph.insert(
-            collection_iri.clone(),
-            Predicate::Type,
-            NS.schema.get("Collection"),
-        );
+        if let Some(schema_class) = &collection.schema_class {
+            self.graph.insert(
+                collection_iri.clone(),
+                Predicate::Type,
+                NS.schema.get(schema_class.local_name()),
+            );
+        }
 
         self.graph.insert(
             collection_iri.clone(),
@@ -209,16 +209,11 @@ impl ModelSerializer {
             file_iri.clone(),
         );
 
-        self.graph.insert(
-            file_iri.clone(),
-            Predicate::Type,
-            NS.schema.get("MediaObject"),
-        );
-        if let Some(dcmi_type) = file.dcmi_type {
+        if let Some(schema_class) = &file.schema_class {
             self.graph.insert(
                 file_iri.clone(),
                 Predicate::Type,
-                NS.dctype.get(dcmi_type.local_name()),
+                NS.schema.get(schema_class.local_name()),
             );
         }
 
@@ -244,16 +239,11 @@ impl ModelSerializer {
         let item_url = url::artifact_short(&item.id)?;
         let item_iri = Iri::from_web_url(&item_url);
 
-        self.graph.insert(
-            item_iri.clone(),
-            Predicate::Type,
-            NS.schema.get("CreativeWork"),
-        );
-        if let Some(dcmi_type) = item.dcmi_type {
+        if let Some(schema_class) = &item.schema_class {
             self.graph.insert(
                 item_iri.clone(),
                 Predicate::Type,
-                NS.dctype.get(dcmi_type.local_name()),
+                NS.schema.get(schema_class.local_name()),
             );
         }
 
