@@ -1,5 +1,5 @@
+mod example;
 mod graph;
 mod jsonld;
-mod model;
 
-pub use model::generate;
+pub use example::generate;
