@@ -9,6 +9,7 @@ struct Namespaces {
     dctype: Namespace,
     schema: Namespace,
     rdfs: Namespace,
+    skos: Namespace,
     ace: Namespace,
 }
 
@@ -17,6 +18,7 @@ const NS: Namespaces = Namespaces {
     dctype: Namespace::from_static("dctype", "http://purl.org/dc/dcmitype/"),
     schema: Namespace::from_static("schema", "https://schema.org/"),
     rdfs: Namespace::from_static("rdfs", "http://www.w3.org/2000/01/rdf-schema#"),
+    skos: Namespace::from_static("skos", "http://www.w3.org/2004/02/skos/core#"),
     ace: Namespace::from_static("ace", "https://acearchive.lgbt/terms/"),
 };
 
@@ -33,6 +35,7 @@ impl Context for ModelContext {
             &self.ns.dctype,
             &self.ns.schema,
             &self.ns.rdfs,
+            &self.ns.skos,
         ];
 
         if self.include_private_terms {
@@ -131,6 +134,72 @@ impl ModelSerializer {
             NS.schema.get("name"),
             Literal::from(person.name.clone()),
         );
+
+        Ok(())
+    }
+
+    fn add_identity_scheme(&mut self) -> anyhow::Result<()> {
+        let scheme_iri = Iri::from_web_url(&url::identities()?);
+
+        self.graph.insert(
+            scheme_iri.clone(),
+            Predicate::Type,
+            NS.skos.get("ConceptScheme"),
+        );
+        self.graph
+            .insert(scheme_iri, Predicate::Type, NS.schema.get("DefinedTermSet"));
+
+        Ok(())
+    }
+
+    fn add_identity(&mut self, identity: &models::Identity) -> anyhow::Result<()> {
+        self.add_identity_scheme()?;
+
+        let identity_iri = Iri::from_web_url(&url::identity(&identity.name.value)?);
+        let scheme_iri = Iri::from_web_url(&url::identities()?);
+
+        self.graph.insert(
+            identity_iri.clone(),
+            Predicate::Type,
+            NS.skos.get("Concept"),
+        );
+        self.graph.insert(
+            identity_iri.clone(),
+            Predicate::Type,
+            NS.schema.get("DefinedTerm"),
+        );
+
+        self.graph.insert(
+            identity_iri.clone(),
+            NS.skos.get("prefLabel"),
+            identity.name.clone(),
+        );
+        self.graph.insert(
+            identity_iri.clone(),
+            NS.schema.get("name"),
+            identity.name.clone(),
+        );
+
+        if let Some(identity_url) = &identity.url {
+            self.graph.insert(
+                identity_iri.clone(),
+                NS.skos.get("exactMatch"),
+                Iri::new(identity_url.to_string()),
+            );
+            self.graph.insert(
+                identity_iri.clone(),
+                NS.schema.get("sameAs"),
+                Iri::new(identity_url.to_string()),
+            );
+        }
+
+        self.graph.insert(
+            identity_iri.clone(),
+            NS.skos.get("inScheme"),
+            scheme_iri.clone(),
+        );
+        self.graph
+            .insert(identity_iri, NS.schema.get("inDefinedTermSet"), scheme_iri);
 
         Ok(())
     }
@@ -366,18 +435,20 @@ impl ModelSerializer {
         );
 
         for identity in &item.identities {
-            let identity_object = match &identity.url {
-                Some(identity_url) => Object::from(Iri::new(identity_url.to_string())),
-                None => Object::from(identity.name.clone()),
-            };
+            self.add_identity(identity)?;
+
+            let identity_url = url::identity(&identity.name.value)?;
 
             self.graph.insert(
                 item_iri.clone(),
                 NS.dcterms.get("subject"),
-                identity_object.clone(),
+                Iri::from_web_url(&identity_url),
             );
-            self.graph
-                .insert(item_iri.clone(), NS.schema.get("keywords"), identity_object);
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("about"),
+                Iri::from_web_url(&identity_url),
+            );
         }
 
         for link in &item.links {
