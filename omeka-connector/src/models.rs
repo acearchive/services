@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt};
 
 use super::omeka::{AceFilename, AceId, AceSlug};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lang(Cow<'static, str>);
 
 impl Lang {
