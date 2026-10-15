@@ -53,10 +53,14 @@ impl From<models::LocalizedString> for Object {
 
 impl<C> Graph<C> {
     fn add_link(&mut self, link: &models::Link) {
-        let iri = Iri::new(link.url.to_string());
+        let link_iri = Iri::new(link.url.to_string());
 
-        self.insert(iri.clone(), CTX.dcterms.get("title"), link.title.clone());
-        self.insert(iri, CTX.schema.get("name"), link.title.clone());
+        self.insert(
+            link_iri.clone(),
+            CTX.dcterms.get("title"),
+            link.title.clone(),
+        );
+        self.insert(link_iri, CTX.schema.get("name"), link.title.clone());
     }
 
     fn add_file(&mut self, file: &models::File, id: &omeka::AceId) -> anyhow::Result<()> {
@@ -104,6 +108,54 @@ impl<C> Graph<C> {
             CTX.schema.get("encodesCreativeWork"),
             item_iri,
         );
+
+        Ok(())
+    }
+
+    fn add_collection(&mut self, collection: &models::Collection) -> anyhow::Result<()> {
+        let collection_url = url::collection(&collection.title.value)?;
+        let collection_iri = Iri::from_web_url(&collection_url);
+
+        self.insert(
+            collection_iri.clone(),
+            Predicate::Type,
+            CTX.dctype.get("Collection"),
+        );
+        self.insert(
+            collection_iri.clone(),
+            Predicate::Type,
+            CTX.schema.get("Collection"),
+        );
+
+        self.insert(
+            collection_iri.clone(),
+            CTX.schema.get("url"),
+            Literal::from(collection_url.clone().to_string()),
+        );
+
+        self.insert(
+            collection_iri.clone(),
+            CTX.dcterms.get("title"),
+            collection.title.clone(),
+        );
+        self.insert(
+            collection_iri.clone(),
+            CTX.schema.get("name"),
+            collection.title.clone(),
+        );
+
+        if let Some(description) = &collection.description {
+            self.insert(
+                collection_iri.clone(),
+                CTX.dcterms.get("description"),
+                description.clone(),
+            );
+            self.insert(
+                collection_iri,
+                CTX.schema.get("description"),
+                description.clone(),
+            );
+        }
 
         Ok(())
     }
