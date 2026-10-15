@@ -5,22 +5,16 @@ use crate::{models, omeka, url};
 
 #[derive(Debug, Clone)]
 struct Namespaces {
-    dcterms: Namespace,
     dctype: Namespace,
     schema: Namespace,
     rdfs: Namespace,
-    skos: Namespace,
-    foaf: Namespace,
     ace: Namespace,
 }
 
 const NS: Namespaces = Namespaces {
-    dcterms: Namespace::from_static("dcterms", "http://purl.org/dc/terms/"),
     dctype: Namespace::from_static("dctype", "http://purl.org/dc/dcmitype/"),
     schema: Namespace::from_static("schema", "https://schema.org/"),
     rdfs: Namespace::from_static("rdfs", "http://www.w3.org/2000/01/rdf-schema#"),
-    skos: Namespace::from_static("skos", "http://www.w3.org/2004/02/skos/core#"),
-    foaf: Namespace::from_static("foaf", "http://xmlns.com/foaf/0.1/"),
     ace: Namespace::from_static("ace", "https://acearchive.lgbt/terms/"),
 };
 
@@ -32,14 +26,7 @@ struct ModelContext {
 
 impl Context for ModelContext {
     fn namespaces(&self) -> Vec<&Namespace> {
-        let mut terms = vec![
-            &self.ns.dcterms,
-            &self.ns.dctype,
-            &self.ns.schema,
-            &self.ns.rdfs,
-            &self.ns.skos,
-            &self.ns.foaf,
-        ];
+        let mut terms = vec![&self.ns.dctype, &self.ns.schema, &self.ns.rdfs];
 
         if self.include_private_terms {
             terms.push(&self.ns.ace);
@@ -113,8 +100,6 @@ impl ModelSerializer {
 
         self.graph
             .insert(person_iri.clone(), Predicate::Type, NS.schema.get("Person"));
-        self.graph
-            .insert(person_iri.clone(), Predicate::Type, NS.foaf.get("Person"));
 
         self.graph.insert(
             person_iri.clone(),
@@ -127,11 +112,6 @@ impl ModelSerializer {
             NS.schema.get("name"),
             Literal::from(person.name.clone()),
         );
-        self.graph.insert(
-            person_iri,
-            NS.foaf.get("name"),
-            Literal::from(person.name.clone()),
-        );
 
         Ok(())
     }
@@ -139,11 +119,6 @@ impl ModelSerializer {
     fn add_identity_scheme(&mut self) -> anyhow::Result<()> {
         let scheme_iri = Iri::from_web_url(&url::identities()?);
 
-        self.graph.insert(
-            scheme_iri.clone(),
-            Predicate::Type,
-            NS.skos.get("ConceptScheme"),
-        );
         self.graph
             .insert(scheme_iri, Predicate::Type, NS.schema.get("DefinedTermSet"));
 
@@ -159,20 +134,10 @@ impl ModelSerializer {
             Predicate::Type,
             NS.schema.get("DefinedTerm"),
         );
-        self.graph.insert(
-            identity_iri.clone(),
-            Predicate::Type,
-            NS.skos.get("Concept"),
-        );
 
         self.graph.insert(
             identity_iri.clone(),
             NS.schema.get("name"),
-            identity.name.clone(),
-        );
-        self.graph.insert(
-            identity_iri.clone(),
-            NS.skos.get("prefLabel"),
             identity.name.clone(),
         );
 
@@ -182,11 +147,6 @@ impl ModelSerializer {
                 NS.schema.get("sameAs"),
                 Iri::new(identity_url.to_string()),
             );
-            self.graph.insert(
-                identity_iri.clone(),
-                NS.skos.get("exactMatch"),
-                Iri::new(identity_url.to_string()),
-            );
         }
 
         self.graph.insert(
@@ -194,8 +154,6 @@ impl ModelSerializer {
             NS.schema.get("inDefinedTermSet"),
             scheme_iri.clone(),
         );
-        self.graph
-            .insert(identity_iri.clone(), NS.skos.get("inScheme"), scheme_iri);
 
         Ok(())
     }
@@ -209,11 +167,6 @@ impl ModelSerializer {
             Predicate::Type,
             NS.schema.get("Collection"),
         );
-        self.graph.insert(
-            collection_iri.clone(),
-            Predicate::Type,
-            NS.dctype.get("Collection"),
-        );
 
         self.graph.insert(
             collection_iri.clone(),
@@ -226,21 +179,11 @@ impl ModelSerializer {
             NS.schema.get("name"),
             collection.title.clone(),
         );
-        self.graph.insert(
-            collection_iri.clone(),
-            NS.dcterms.get("title"),
-            collection.title.clone(),
-        );
 
         if let Some(description) = &collection.description {
             self.graph.insert(
                 collection_iri.clone(),
                 NS.schema.get("description"),
-                description.clone(),
-            );
-            self.graph.insert(
-                collection_iri,
-                NS.dcterms.get("description"),
                 description.clone(),
             );
         }
@@ -284,27 +227,15 @@ impl ModelSerializer {
             NS.schema.get("encodingFormat"),
             Literal::from(file.media_type.clone()),
         );
-        self.graph.insert(
-            file_iri.clone(),
-            NS.dcterms.get("format"),
-            Literal::from(file.media_type.clone()),
-        );
 
         self.graph
             .insert(file_iri.clone(), NS.schema.get("name"), file.title.clone());
-        self.graph.insert(
-            file_iri.clone(),
-            NS.dcterms.get("title"),
-            file.title.clone(),
-        );
 
         self.graph.insert(
             file_iri.clone(),
             NS.schema.get("encodesCreativeWork"),
             item_iri.clone(),
         );
-        self.graph
-            .insert(file_iri.clone(), NS.dcterms.get("isFormatOf"), item_iri);
 
         Ok(())
     }
@@ -339,11 +270,6 @@ impl ModelSerializer {
             NS.schema.get("identifier"),
             Literal::from(item.id.to_string()),
         );
-        self.graph.insert(
-            item_iri.clone(),
-            NS.dcterms.get("identifier"),
-            Literal::from(item.id.to_string()),
-        );
 
         self.graph.insert(
             item_iri.clone(),
@@ -361,8 +287,6 @@ impl ModelSerializer {
             NS.schema.get("name"),
             stripped_title.clone(),
         );
-        self.graph
-            .insert(item_iri.clone(), NS.dcterms.get("title"), stripped_title);
 
         let stripped_abstract = models::LocalizedString {
             value: strip_markdown(&item.summary.value),
@@ -382,21 +306,11 @@ impl ModelSerializer {
                 NS.schema.get("description"),
                 stripped_description.clone(),
             );
-            self.graph.insert(
-                item_iri.clone(),
-                NS.dcterms.get("description"),
-                stripped_description,
-            );
 
             self.graph.insert(
                 item_iri.clone(),
                 NS.schema.get("abstract"),
                 stripped_abstract.clone(),
-            );
-            self.graph.insert(
-                item_iri.clone(),
-                NS.dcterms.get("abstract"),
-                stripped_abstract,
             );
         } else {
             self.graph.insert(
@@ -404,28 +318,13 @@ impl ModelSerializer {
                 NS.schema.get("description"),
                 stripped_abstract.clone(),
             );
-            self.graph.insert(
-                item_iri.clone(),
-                NS.dcterms.get("description"),
-                stripped_abstract,
-            );
         }
-
-        let year_range = match item.to_year {
-            Some(to_year) if to_year != item.from_year => format!("{}/{}", item.from_year, to_year),
-            Some(_) | None => item.from_year.to_string(),
-        };
 
         // The `schema::dateCreated` term only supports individual years, not ranges.
         self.graph.insert(
             item_iri.clone(),
             NS.schema.get("dateCreated"),
             Literal::from(item.from_year.to_string()),
-        );
-        self.graph.insert(
-            item_iri.clone(),
-            NS.dcterms.get("created"),
-            Literal::from(year_range),
         );
 
         for identity in &item.identities {
@@ -436,11 +335,6 @@ impl ModelSerializer {
             self.graph.insert(
                 item_iri.clone(),
                 NS.schema.get("about"),
-                Iri::from_web_url(&identity_url),
-            );
-            self.graph.insert(
-                item_iri.clone(),
-                NS.dcterms.get("subject"),
                 Iri::from_web_url(&identity_url),
             );
         }
@@ -465,11 +359,6 @@ impl ModelSerializer {
                 NS.schema.get("encoding"),
                 Iri::new(file_url.to_string()),
             );
-            self.graph.insert(
-                item_iri.clone(),
-                NS.dcterms.get("hasFormat"),
-                Iri::new(file_url.to_string()),
-            );
         }
 
         for collection in &item.collections {
@@ -482,11 +371,6 @@ impl ModelSerializer {
                 NS.schema.get("isPartOf"),
                 Iri::from_web_url(&collection_url),
             );
-            self.graph.insert(
-                item_iri.clone(),
-                NS.dcterms.get("isPartOf"),
-                Iri::from_web_url(&collection_url),
-            );
         }
 
         for person in &item.people {
@@ -497,11 +381,6 @@ impl ModelSerializer {
             self.graph.insert(
                 item_iri.clone(),
                 NS.schema.get("creator"),
-                Iri::from_web_url(&person_url),
-            );
-            self.graph.insert(
-                item_iri.clone(),
-                NS.dcterms.get("creator"),
                 Iri::from_web_url(&person_url),
             );
         }
