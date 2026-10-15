@@ -116,7 +116,7 @@ impl ModelSerializer {
         self.graph.insert(
             person_iri.clone(),
             NS.schema.get("url"),
-            Literal::from(person_url.to_string()),
+            Iri::new(person_url.to_string()),
         );
 
         self.graph.insert(
@@ -151,7 +151,7 @@ impl ModelSerializer {
         self.graph.insert(
             collection_iri.clone(),
             NS.schema.get("url"),
-            Literal::from(collection_url.clone().to_string()),
+            Iri::new(collection_url.to_string()),
         );
 
         self.graph.insert(
@@ -228,6 +228,166 @@ impl ModelSerializer {
             NS.schema.get("encodesCreativeWork"),
             item_iri,
         );
+
+        Ok(())
+    }
+
+    fn add_item(&mut self, item: &models::Item) -> anyhow::Result<()> {
+        let item_url = url::artifact_short(&item.id)?;
+        let item_iri = Iri::from_web_url(&item_url);
+
+        self.graph
+            .insert(item_iri.clone(), Predicate::Type, NS.dctype.get("Text"));
+        self.graph.insert(
+            item_iri.clone(),
+            Predicate::Type,
+            NS.schema.get("CreativeWork"),
+        );
+
+        self.graph.insert(
+            item_iri.clone(),
+            NS.dcterms.get("identifier"),
+            Literal::from(item.id.to_string()),
+        );
+        self.graph.insert(
+            item_iri.clone(),
+            NS.schema.get("identifier"),
+            Literal::from(item.id.to_string()),
+        );
+
+        self.graph.insert(
+            item_iri.clone(),
+            NS.schema.get("url"),
+            Iri::new(item_url.to_string()),
+        );
+
+        self.graph.insert(
+            item_iri.clone(),
+            NS.dcterms.get("title"),
+            item.title.clone(),
+        );
+        self.graph
+            .insert(item_iri.clone(), NS.schema.get("name"), item.title.clone());
+
+        if let Some(description) = &item.description {
+            self.graph.insert(
+                item_iri.clone(),
+                NS.dcterms.get("description"),
+                description.clone(),
+            );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("description"),
+                description.clone(),
+            );
+        }
+
+        self.graph.insert(
+            item_iri.clone(),
+            NS.dcterms.get("abstract"),
+            item.summary.clone(),
+        );
+        self.graph.insert(
+            item_iri.clone(),
+            NS.schema.get("abstract"),
+            item.summary.clone(),
+        );
+
+        let year_range = if let Some(to_year) = item.to_year {
+            format!("{}/{}", item.from_year, to_year)
+        } else {
+            item.from_year.to_string()
+        };
+
+        self.graph.insert(
+            item_iri.clone(),
+            NS.dcterms.get("created"),
+            Literal::from(year_range.clone()),
+        );
+        self.graph.insert(
+            item_iri.clone(),
+            NS.schema.get("dateCreated"),
+            Literal::from(year_range),
+        );
+
+        for identity_url in &item.identities {
+            self.graph.insert(
+                item_iri.clone(),
+                NS.dcterms.get("subject"),
+                Iri::new(identity_url.to_string()),
+            );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("about"),
+                Iri::new(identity_url.to_string()),
+            );
+        }
+
+        for link in &item.links {
+            self.add_link(link);
+
+            self.graph.insert(
+                item_iri.clone(),
+                NS.dcterms.get("relation"),
+                Iri::new(link.url.to_string()),
+            );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.rdfs.get("seeAlso"),
+                Iri::new(link.url.to_string()),
+            );
+        }
+
+        for file in &item.files {
+            self.add_file(file, &item.id)?;
+
+            let file_url = url::file_raw(&item.id, &file.filename)?;
+
+            self.graph.insert(
+                item_iri.clone(),
+                NS.dcterms.get("hasFormat"),
+                Iri::new(file_url.to_string()),
+            );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("encoding"),
+                Iri::new(file_url.to_string()),
+            )
+        }
+
+        for collection in &item.collections {
+            self.add_collection(collection)?;
+
+            let collection_url = url::collection(&collection.title.value)?;
+
+            self.graph.insert(
+                item_iri.clone(),
+                NS.dcterms.get("isPartOf"),
+                Iri::from_web_url(&collection_url),
+            );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("isPartOf"),
+                Iri::from_web_url(&collection_url),
+            );
+        }
+
+        for person in &item.people {
+            self.add_person(person)?;
+
+            let person_url = url::person(&person.name)?;
+
+            self.graph.insert(
+                item_iri.clone(),
+                NS.dcterms.get("creator"),
+                Iri::from_web_url(&person_url),
+            );
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("creator"),
+                Iri::from_web_url(&person_url),
+            );
+        }
 
         Ok(())
     }
