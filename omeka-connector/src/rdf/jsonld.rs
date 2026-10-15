@@ -15,10 +15,28 @@ struct BySubject<'a> {
     predicates: Vec<ByPredicate<'a>>,
 }
 
-impl Object {
-    fn serialize(&self) -> JsonValue {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum PredicateKind {
+    Iri,
+    Type,
+}
+
+impl Predicate {
+    fn kind(&self) -> PredicateKind {
         match self {
-            Object::Iri(iri) => json!({ "@id": iri.to_string() }),
+            Predicate::Iri(_) => PredicateKind::Iri,
+            Predicate::Type => PredicateKind::Type,
+        }
+    }
+}
+
+impl Object {
+    fn serialize(&self, predicate: PredicateKind) -> JsonValue {
+        match self {
+            Object::Iri(iri) => match predicate {
+                PredicateKind::Iri => json!({ "@id": iri.to_string() }),
+                PredicateKind::Type => JsonValue::String(iri.to_string()),
+            },
             Object::Literal(Literal::String(string)) => JsonValue::String(string.to_string()),
         }
     }
@@ -39,10 +57,16 @@ impl BySubject<'_> {
 
             match objects.as_slice() {
                 [object] => {
-                    map.insert(key, object.serialize());
+                    map.insert(key, object.serialize(predicate.kind()));
                 }
                 objects => {
-                    map.insert(key, objects.iter().map(|o| o.serialize()).collect());
+                    map.insert(
+                        key,
+                        objects
+                            .iter()
+                            .map(|o| o.serialize(predicate.kind()))
+                            .collect(),
+                    );
                 }
             }
         }

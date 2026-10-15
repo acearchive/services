@@ -7,6 +7,10 @@ impl Iri {
     pub fn new<T: Into<Cow<'static, str>>>(iri: T) -> Self {
         Self(iri.into())
     }
+
+    pub const fn from_static(iri: &'static str) -> Self {
+        Self(Cow::Borrowed(iri))
+    }
 }
 
 impl fmt::Display for Iri {
