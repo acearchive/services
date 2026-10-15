@@ -8,17 +8,27 @@ pub struct ModelContext {
     dcterms: Namespace,
     dctype: Namespace,
     schema: Namespace,
+    rdfs: Namespace,
+    mime: Namespace,
 }
 
 pub const CTX: ModelContext = ModelContext {
     dcterms: Namespace::from_static("dcterms", "http://purl.org/dc/terms/"),
     dctype: Namespace::from_static("dctype", "http://purl.org/dc/dcmitype/"),
-    schema: Namespace::from_static("schema", "http://schema.org/"),
+    schema: Namespace::from_static("schema", "https://schema.org/"),
+    rdfs: Namespace::from_static("rdfs", "http://www.w3.org/2000/01/rdf-schema#"),
+    mime: Namespace::from_static("mime", "https://www.w3.org/ns/iana/media-types/"),
 };
 
 impl Context for ModelContext {
     fn namespaces(&self) -> Vec<&Namespace> {
-        vec![&self.dcterms, &self.dctype, &self.schema]
+        vec![
+            &self.dcterms,
+            &self.dctype,
+            &self.schema,
+            &self.rdfs,
+            &self.mime,
+        ]
     }
 }
 
@@ -32,12 +42,12 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         ARTIFACT_IRI,
         CTX.schema.get("url"),
-        "https://acearchive.lgbt/artifacts/orlando-the-asexual-manifesto",
+        Iri::new("https://acearchive.lgbt/artifacts/orlando-the-asexual-manifesto"),
     );
     graph.insert(
         ARTIFACT_IRI,
         CTX.dcterms.get("title"),
-        "*The Asexual Manifesto*",
+        "The Asexual Manifesto",
     );
     graph.insert(
         ARTIFACT_IRI,
@@ -62,7 +72,7 @@ fn build() -> Graph<ModelContext> {
     );
     graph.insert(
         Iri::new("https://archive.org/details/asexualmanifestolisaorlando"),
-        CTX.dcterms.get("title"),
+        CTX.rdfs.get("label"),
         "Internet Archive",
     );
     graph.insert(
@@ -78,16 +88,16 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         Iri::new("https://files.acearchive.lgbt/r/MKbNWmmhCog6/the-asexual-manifesto.pdf"),
         CTX.dcterms.get("format"),
-        "application/pdf",
+        CTX.mime.get("application/pdf"),
     );
     graph.insert(
         Iri::new("https://files.acearchive.lgbt/r/MKbNWmmhCog6/the-asexual-manifesto.pdf"),
-        CTX.dcterms.get("title"),
+        CTX.rdfs.get("label"),
         "Digital Scan",
     );
     graph.insert(
         ARTIFACT_IRI,
-        CTX.dcterms.get("isPartrOf"),
+        CTX.dcterms.get("isPartOf"),
         Iri::new("https://acearchive.lgbt/collections/newsjournals-and-underground-press/"),
     );
     graph.insert(
@@ -108,11 +118,11 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         Iri::new("https://acearchive.lgbt/people/lisa-orlando/"),
         Predicate::Type,
-        CTX.dctype.get("Person"),
+        CTX.schema.get("Person"),
     );
     graph.insert(
         Iri::new("https://acearchive.lgbt/people/lisa-orlando/"),
-        CTX.dcterms.get("title"),
+        CTX.schema.get("name"),
         "Lisa Orlando",
     );
 
