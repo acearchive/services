@@ -24,6 +24,37 @@ pub enum Literal {
     String(Cow<'static, str>),
 }
 
+impl From<String> for Literal {
+    fn from(s: String) -> Self {
+        Self::String(Cow::Owned(s))
+    }
+}
+
+impl From<&'static str> for Literal {
+    fn from(s: &'static str) -> Self {
+        Self::String(Cow::Borrowed(s))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Lang(Cow<'static, str>);
+
+impl Lang {
+    pub fn new<T: Into<Cow<'static, str>>>(lang: T) -> Self {
+        Self(lang.into())
+    }
+
+    pub const fn from_static(lang: &'static str) -> Self {
+        Self(Cow::Borrowed(lang))
+    }
+}
+
+impl fmt::Display for Lang {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Subject {
     Iri(Iri),
@@ -50,7 +81,7 @@ impl From<Iri> for Predicate {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Object {
     Iri(Iri),
-    Literal(Literal),
+    Literal(Literal, Option<Lang>),
 }
 
 impl From<Iri> for Object {
@@ -59,15 +90,15 @@ impl From<Iri> for Object {
     }
 }
 
-impl From<String> for Object {
-    fn from(s: String) -> Self {
-        Self::Literal(Literal::String(Cow::Owned(s)))
+impl From<Literal> for Object {
+    fn from(literal: Literal) -> Self {
+        Self::Literal(literal, None)
     }
 }
 
-impl From<&'static str> for Object {
-    fn from(s: &'static str) -> Self {
-        Self::Literal(Literal::String(Cow::Borrowed(s)))
+impl From<(Literal, Lang)> for Object {
+    fn from((literal, lang): (Literal, Lang)) -> Self {
+        Self::Literal(literal, Some(lang))
     }
 }
 

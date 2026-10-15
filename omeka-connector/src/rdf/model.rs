@@ -1,6 +1,6 @@
 use std::fs;
 
-use super::graph::{Context, Graph, Iri, Namespace, Predicate};
+use super::graph::{Context, Graph, Iri, Lang, Literal, Namespace, Predicate};
 use crate::config;
 
 #[derive(Debug, Clone)]
@@ -20,6 +20,8 @@ pub const CTX: ModelContext = ModelContext {
     mime: Namespace::from_static("mime", "https://www.w3.org/ns/iana/media-types/"),
 };
 
+pub const EN: Lang = Lang::from_static("en");
+
 impl Context for ModelContext {
     fn namespaces(&self) -> Vec<&Namespace> {
         vec![
@@ -38,7 +40,11 @@ fn build() -> Graph<ModelContext> {
     const ARTIFACT_IRI: Iri = Iri::from_static("https://acearchive.lgbt/a/MKbNWmmhCog6");
 
     graph.insert(ARTIFACT_IRI, Predicate::Type, CTX.dctype.get("Text"));
-    graph.insert(ARTIFACT_IRI, CTX.dcterms.get("identifier"), "MKbNWmmhCog6");
+    graph.insert(
+        ARTIFACT_IRI,
+        CTX.dcterms.get("identifier"),
+        Literal::from("MKbNWmmhCog6"),
+    );
     graph.insert(
         ARTIFACT_IRI,
         CTX.schema.get("url"),
@@ -47,14 +53,21 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         ARTIFACT_IRI,
         CTX.dcterms.get("title"),
-        "The Asexual Manifesto",
+        ("The Asexual Manifesto".into(), EN),
     );
     graph.insert(
         ARTIFACT_IRI,
         CTX.dcterms.get("description"),
-        "A paper by the Asexual Caucus of the New York Radical Feminists",
+        (
+            "A paper by the Asexual Caucus of the New York Radical Feminists".into(),
+            EN,
+        ),
     );
-    graph.insert(ARTIFACT_IRI, CTX.dcterms.get("created"), "1972");
+    graph.insert(
+        ARTIFACT_IRI,
+        CTX.dcterms.get("created"),
+        Literal::from("1972"),
+    );
     graph.insert(
         ARTIFACT_IRI,
         CTX.dcterms.get("subject"),
@@ -73,7 +86,7 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         Iri::new("https://archive.org/details/asexualmanifestolisaorlando"),
         CTX.rdfs.get("label"),
-        "Internet Archive",
+        ("Internet Archive".into(), EN),
     );
     graph.insert(
         ARTIFACT_IRI,
@@ -93,7 +106,7 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         Iri::new("https://files.acearchive.lgbt/r/MKbNWmmhCog6/the-asexual-manifesto.pdf"),
         CTX.rdfs.get("label"),
-        "Digital Scan",
+        ("Digital Scan".into(), EN),
     );
     graph.insert(
         ARTIFACT_IRI,
@@ -108,7 +121,7 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         Iri::new("https://acearchive.lgbt/collections/newsjournals-and-underground-press/"),
         CTX.dcterms.get("title"),
-        "News Journals and Underground Press",
+        ("News Journals and Underground Press".into(), EN),
     );
     graph.insert(
         ARTIFACT_IRI,
@@ -123,7 +136,7 @@ fn build() -> Graph<ModelContext> {
     graph.insert(
         Iri::new("https://acearchive.lgbt/people/lisa-orlando/"),
         CTX.schema.get("name"),
-        "Lisa Orlando",
+        Literal::from("Lisa Orlando"),
     );
 
     graph

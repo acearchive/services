@@ -37,7 +37,10 @@ impl Object {
                 PredicateKind::Iri => json!({ "@id": iri.to_string() }),
                 PredicateKind::Type => JsonValue::String(iri.to_string()),
             },
-            Object::Literal(Literal::String(string)) => JsonValue::String(string.to_string()),
+            Object::Literal(Literal::String(string), None) => JsonValue::String(string.to_string()),
+            Object::Literal(Literal::String(string), Some(lang)) => {
+                json!({ "@value": string.to_string(), "@language": lang.to_string() })
+            }
         }
     }
 }
