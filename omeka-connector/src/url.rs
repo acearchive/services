@@ -27,6 +27,7 @@ pub fn file_long(
     let mut url = config::files_url()?;
     url.path_segments_mut()
         .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
+        .pop_if_empty()
         .push("artifacts")
         .push(slug.to_string().as_str())
         .push(filename.to_string().as_str());
@@ -41,6 +42,7 @@ pub fn file_short(
     let mut url = config::files_url()?;
     url.path_segments_mut()
         .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
+        .pop_if_empty()
         .push("a")
         .push(id.to_string().as_str())
         .push(filename.to_string().as_str());
@@ -52,6 +54,7 @@ pub fn file_raw(id: &omeka::AceId, filename: &omeka::AceFilename) -> anyhow::Res
     let mut url = config::files_url()?;
     url.path_segments_mut()
         .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
+        .pop_if_empty()
         .push("r")
         .push(id.to_string().as_str())
         .push(filename.to_string().as_str());
