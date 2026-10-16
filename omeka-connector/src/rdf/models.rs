@@ -156,6 +156,8 @@ impl ModelSerializer {
             scheme_iri.clone(),
         );
 
+        self.add_identity_scheme()?;
+
         Ok(())
     }
 
@@ -194,7 +196,7 @@ impl ModelSerializer {
         Ok(())
     }
 
-    fn add_file(&mut self, file: &models::File, id: &omeka::AceId) -> anyhow::Result<()> {
+    pub fn add_file(&mut self, file: &models::File, id: &omeka::AceId) -> anyhow::Result<()> {
         let file_iri = Iri::new(url::file_raw(id, &file.filename)?.to_string());
         let item_iri = Iri::from_web_url(&url::artifact_short(id)?);
 
@@ -322,14 +324,7 @@ impl ModelSerializer {
 
         for identity in &item.identities {
             self.add_identity(identity)?;
-
-            let identity_url = url::identity(&identity.name.value)?;
-
-            self.graph.insert(
-                item_iri.clone(),
-                NS.schema.get("about"),
-                Iri::from_web_url(&identity_url),
-            );
+            self.link_about(&item_iri, identity)?;
         }
 
         for link in &item.links {
@@ -356,33 +351,107 @@ impl ModelSerializer {
 
         for collection in &item.collections {
             self.add_collection(collection)?;
-
-            let collection_url = url::collection(&collection.title.value)?;
-
-            self.graph.insert(
-                item_iri.clone(),
-                NS.schema.get("isPartOf"),
-                Iri::from_web_url(&collection_url),
-            );
+            self.link_part_of(&item_iri, collection)?;
         }
 
         for person in &item.people {
             self.add_person(person)?;
-
-            let person_url = url::person(&person.name)?;
-
-            self.graph.insert(
-                item_iri.clone(),
-                NS.schema.get("creator"),
-                Iri::from_web_url(&person_url),
-            );
+            self.link_creator(&item_iri, person)?;
         }
 
         Ok(())
     }
 
-    pub fn into_json(mut self) -> anyhow::Result<serde_json::Value> {
-        self.add_identity_scheme()?;
+    fn item_iri(item: &models::Item) -> anyhow::Result<Iri> {
+        Ok(Iri::from_web_url(&url::artifact_short(&item.id)?))
+    }
+
+    fn link_about(&mut self, item_iri: &Iri, identity: &models::Identity) -> anyhow::Result<()> {
+        let identity_url = url::identity(&identity.name.value)?;
+
+        self.graph.insert(
+            item_iri.clone(),
+            NS.schema.get("about"),
+            Iri::from_web_url(&identity_url),
+        );
+
+        Ok(())
+    }
+
+    fn link_part_of(
+        &mut self,
+        item_iri: &Iri,
+        collection: &models::Collection,
+    ) -> anyhow::Result<()> {
+        let collection_url = url::collection(&collection.title.value)?;
+
+        self.graph.insert(
+            item_iri.clone(),
+            NS.schema.get("isPartOf"),
+            Iri::from_web_url(&collection_url),
+        );
+
+        Ok(())
+    }
+
+    fn link_creator(&mut self, item_iri: &Iri, person: &models::Person) -> anyhow::Result<()> {
+        let person_url = url::person(&person.name)?;
+
+        self.graph.insert(
+            item_iri.clone(),
+            NS.schema.get("creator"),
+            Iri::from_web_url(&person_url),
+        );
+
+        Ok(())
+    }
+
+    /// Add a person, along with a link from each item they created.
+    pub fn add_person_document(
+        &mut self,
+        person: &models::Person,
+        items: &[models::Item],
+    ) -> anyhow::Result<()> {
+        self.add_person(person)?;
+
+        for item in items {
+            self.link_creator(&Self::item_iri(item)?, person)?;
+        }
+
+        Ok(())
+    }
+
+    /// Add an identity, along with a link from each item about it.
+    pub fn add_identity_document(
+        &mut self,
+        identity: &models::Identity,
+        items: &[models::Item],
+    ) -> anyhow::Result<()> {
+        self.add_identity(identity)?;
+
+        for item in items {
+            self.link_about(&Self::item_iri(item)?, identity)?;
+        }
+
+        Ok(())
+    }
+
+    /// Add a collection, along with a link from each item in it.
+    pub fn add_collection_document(
+        &mut self,
+        collection: &models::Collection,
+        items: &[models::Item],
+    ) -> anyhow::Result<()> {
+        self.add_collection(collection)?;
+
+        for item in items {
+            self.link_part_of(&Self::item_iri(item)?, collection)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn into_json(self) -> anyhow::Result<serde_json::Value> {
         Ok(self.graph.to_json())
     }
 }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use super::{
     cache,
@@ -336,7 +336,151 @@ impl Resolver {
     }
 
     /// Return metadata about every item in the collection.
-    pub async fn list_all_items(&self) -> anyhow::Result<Vec<Item>> {
+    ///
+    /// This is cached for a short duration.
+    pub async fn list_all_items(&self) -> anyhow::Result<Arc<Vec<Item>>> {
+        if let Some(items) = cache::get_items() {
+            return Ok(items);
+        }
+
+        let _guard = cache::ITEMS_REFRESH_LOCK.lock().await;
+
+        // Another request may have refreshed the cache while we were waiting on the lock.
+        if let Some(items) = cache::get_items() {
+            return Ok(items);
+        }
+
+        let items = Arc::new(self.fetch_all_items().await?);
+
+        cache::put_items(Arc::clone(&items))?;
+
+        Ok(items)
+    }
+
+    /// Return metadata about every collection in the archive.
+    ///
+    /// This is cached for a short duration.
+    pub async fn list_all_collections(&self) -> anyhow::Result<Arc<Vec<Collection>>> {
+        if let Some(collections) = cache::get_collections() {
+            return Ok(collections);
+        }
+
+        let _guard = cache::COLLECTIONS_REFRESH_LOCK.lock().await;
+
+        // Another request may have refreshed the cache while we were waiting on the lock.
+        if let Some(collections) = cache::get_collections() {
+            return Ok(collections);
+        }
+
+        let collections = Arc::new(self.fetch_all_collections().await?);
+
+        cache::put_collections(Arc::clone(&collections))?;
+
+        Ok(collections)
+    }
+
+    /// Find the item with the given ID.
+    pub async fn find_item(&self, id: &omeka::AceId) -> anyhow::Result<Option<Item>> {
+        Ok(self
+            .list_all_items()
+            .await?
+            .iter()
+            .find(|item| &item.id == id)
+            .cloned())
+    }
+
+    /// Find the file with the given filename in the item with the given ID.
+    pub async fn find_file(
+        &self,
+        id: &omeka::AceId,
+        filename: &omeka::AceFilename,
+    ) -> anyhow::Result<Option<File>> {
+        Ok(self.find_item(id).await?.and_then(|item| {
+            item.files
+                .into_iter()
+                .find(|file| &file.filename == filename)
+        }))
+    }
+
+    /// Find the person with the given slug, along with every item they created.
+    pub async fn find_person(&self, slug: &str) -> anyhow::Result<Option<(Person, Vec<Item>)>> {
+        let items = self.list_all_items().await?;
+
+        let Some(person) = items
+            .iter()
+            .flat_map(|item| &item.people)
+            .find(|person| url::slugify(&person.name) == slug)
+            .cloned()
+        else {
+            return Ok(None);
+        };
+
+        let creations = items
+            .iter()
+            .filter(|item| item.people.iter().any(|p| p.name == person.name))
+            .cloned()
+            .collect();
+
+        Ok(Some((person, creations)))
+    }
+
+    /// Find the identity with the given slug, along with every item about it.
+    pub async fn find_identity(&self, slug: &str) -> anyhow::Result<Option<(Identity, Vec<Item>)>> {
+        let items = self.list_all_items().await?;
+
+        let Some(identity) = items
+            .iter()
+            .flat_map(|item| &item.identities)
+            .find(|identity| url::slugify(&identity.name.value) == slug)
+            .cloned()
+        else {
+            return Ok(None);
+        };
+
+        let subjects = items
+            .iter()
+            .filter(|item| {
+                item.identities
+                    .iter()
+                    .any(|i| i.name.value == identity.name.value)
+            })
+            .cloned()
+            .collect();
+
+        Ok(Some((identity, subjects)))
+    }
+
+    /// Find the collection with the given slug, along with every item in it.
+    pub async fn find_collection(
+        &self,
+        slug: &str,
+    ) -> anyhow::Result<Option<(Collection, Vec<Item>)>> {
+        let Some(collection) = self
+            .list_all_collections()
+            .await?
+            .iter()
+            .find(|collection| url::slugify(&collection.title.value) == slug)
+            .cloned()
+        else {
+            return Ok(None);
+        };
+
+        let members = self
+            .list_all_items()
+            .await?
+            .iter()
+            .filter(|item| {
+                item.collections
+                    .iter()
+                    .any(|c| c.title.value == collection.title.value)
+            })
+            .cloned()
+            .collect();
+
+        Ok(Some((collection, members)))
+    }
+
+    async fn fetch_all_items(&self) -> anyhow::Result<Vec<Item>> {
         // Given the size of the archive, paginating through all items, item sets, and media and
         // collecting them in memory is going to be much faster than the alternative.
         //
@@ -532,8 +676,7 @@ impl Resolver {
             .collect())
     }
 
-    /// Return metadata about every collection in the archive.
-    pub async fn list_all_collections(&self) -> anyhow::Result<Vec<Collection>> {
+    async fn fetch_all_collections(&self) -> anyhow::Result<Vec<Collection>> {
         let (mut response, mut maybe_next_page) = self
             .client
             .find(omeka::ResourceType::ItemSet, &omeka::FindQuery::new())

@@ -88,6 +88,9 @@ from a `.env` file if one is available.
   should probably not point to a directory on tmpfs for similar.
 - `MEDIA_CACHE_TTL_SECS`: How long, in seconds, to cache URL mappings in
   memory.
+- `MODEL_CACHE_TTL_SECS`: How long, in seconds, to cache metadata about the
+  collection in memory. This should be long enough to last through a build of
+  the static site.
 - `DATA_EXPORT_CRON_SPEC`: A cron spec which determines the frequency of
   automatic data exports. If unset, automatic data exports are disabled.
 

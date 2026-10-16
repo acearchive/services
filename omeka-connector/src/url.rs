@@ -1,6 +1,6 @@
 use crate::{config, omeka};
 
-fn slugify(value: &str) -> String {
+pub fn slugify(value: &str) -> String {
     value.to_lowercase().replace(' ', "-")
 }
 

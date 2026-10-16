@@ -28,6 +28,11 @@ pub fn new() -> Router {
         .route("/hugo-items", get(get_hugo_items))
         .route("/hugo-metadata", get(get_hugo_metadata))
         .route("/jsonld", get(get_jsonld))
+        .route("/jsonld/items/{id}", get(get_jsonld_item))
+        .route("/jsonld/files/{id}/{*filename}", get(get_jsonld_file))
+        .route("/jsonld/people/{slug}", get(get_jsonld_person))
+        .route("/jsonld/identities/{slug}", get(get_jsonld_identity))
+        .route("/jsonld/collections/{slug}", get(get_jsonld_collection))
         .route("/assets/style.css", get(get_asset_style))
         .route("/assets/script.js", get(get_asset_script))
 }
@@ -40,6 +45,31 @@ where
         log::error!("{}", err);
         code
     }
+}
+
+fn new_resolver() -> Result<Resolver, StatusCode> {
+    let omeka_client = omeka::Client::from_config(reqwest::Client::new())
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+    Ok(Resolver::new(omeka_client))
+}
+
+fn jsonld_response(serializer: ModelSerializer) -> Result<impl IntoResponse, StatusCode> {
+    Ok((
+        [("Content-Type", "application/ld+json")],
+        Json(
+            serializer
+                .into_json()
+                .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
+        ),
+    ))
+}
+
+// Documents for individual entities are intended to be embedded in public web pages, so they omit
+// project-specific terms.
+fn entity_serializer() -> ModelSerializer {
+    ModelSerializer::new(ModelOptions {
+        include_private_terms: false,
+    })
 }
 
 fn proxy_response(response: reqwest::Response) -> Response {
@@ -142,7 +172,8 @@ async fn get_hugo_items() -> Result<Json<Vec<Item>>, StatusCode> {
 
     Ok(Json(
         items
-            .into_iter()
+            .iter()
+            .cloned()
             .map(Item::try_from)
             .collect::<anyhow::Result<Vec<_>>>()
             .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
@@ -161,7 +192,8 @@ async fn get_hugo_metadata() -> Result<Json<CollectionMetadata>, StatusCode> {
             .list_all_collections()
             .await
             .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
-            .into_iter()
+            .iter()
+            .cloned()
             .map(Tag::from)
             .collect(),
     }))
@@ -183,20 +215,100 @@ async fn get_jsonld() -> Result<impl IntoResponse, StatusCode> {
         include_private_terms: true,
     });
 
-    for item in &items {
+    for item in items.iter() {
         serializer
             .add_item(item)
             .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
     }
 
-    Ok((
-        [("Content-Type", "application/ld+json")],
-        Json(
-            serializer
-                .into_json()
-                .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?,
-        ),
-    ))
+    jsonld_response(serializer)
+}
+
+#[axum::debug_handler]
+async fn get_jsonld_item(Path(id): Path<omeka::AceId>) -> Result<impl IntoResponse, StatusCode> {
+    let item = new_resolver()?
+        .find_item(&id)
+        .await
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let mut serializer = entity_serializer();
+
+    serializer
+        .add_item(&item)
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+
+    jsonld_response(serializer)
+}
+
+#[axum::debug_handler]
+async fn get_jsonld_file(
+    Path((id, filename)): Path<(omeka::AceId, omeka::AceFilename)>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let file = new_resolver()?
+        .find_file(&id, &filename)
+        .await
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let mut serializer = entity_serializer();
+
+    serializer
+        .add_file(&file, &id)
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+
+    jsonld_response(serializer)
+}
+
+#[axum::debug_handler]
+async fn get_jsonld_person(Path(slug): Path<String>) -> Result<impl IntoResponse, StatusCode> {
+    let (person, items) = new_resolver()?
+        .find_person(&slug)
+        .await
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let mut serializer = entity_serializer();
+
+    serializer
+        .add_person_document(&person, &items)
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+
+    jsonld_response(serializer)
+}
+
+#[axum::debug_handler]
+async fn get_jsonld_identity(Path(slug): Path<String>) -> Result<impl IntoResponse, StatusCode> {
+    let (identity, items) = new_resolver()?
+        .find_identity(&slug)
+        .await
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let mut serializer = entity_serializer();
+
+    serializer
+        .add_identity_document(&identity, &items)
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+
+    jsonld_response(serializer)
+}
+
+#[axum::debug_handler]
+async fn get_jsonld_collection(Path(slug): Path<String>) -> Result<impl IntoResponse, StatusCode> {
+    let (collection, items) = new_resolver()?
+        .find_collection(&slug)
+        .await
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let mut serializer = entity_serializer();
+
+    serializer
+        .add_collection_document(&collection, &items)
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+
+    jsonld_response(serializer)
 }
 
 #[axum::debug_handler]
