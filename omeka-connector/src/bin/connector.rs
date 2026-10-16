@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use acearchive_data_connector::{config, init_config, init_logger, router};
+use acearchive_data_connector::{config, init_config, init_logger, router, run_export_scheduler};
 
 #[tokio::main]
 async fn main() {
@@ -11,6 +11,14 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
         .unwrap();
+
+    match config::data_export().expect("Failed to get data export config.") {
+        Some(export_config) => {
+            log::info!("Data exports enabled.");
+            tokio::spawn(run_export_scheduler(export_config));
+        }
+        None => log::info!("Data exports disabled."),
+    }
 
     log::info!("Server starting.");
 

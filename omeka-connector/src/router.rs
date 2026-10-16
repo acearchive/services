@@ -215,11 +215,9 @@ async fn get_jsonld() -> Result<impl IntoResponse, StatusCode> {
         include_private_terms: true,
     });
 
-    for item in items.iter() {
-        serializer
-            .add_item(item)
-            .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
-    }
+    serializer
+        .add_items(&items)
+        .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
 
     jsonld_response(serializer)
 }

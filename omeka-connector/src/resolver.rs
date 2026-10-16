@@ -645,6 +645,16 @@ impl Resolver {
                         let media = media_responses_by_id.get(&value.id)?;
                         let filename =
                             media.maybe_one(omeka::Property::Filename, |m| &m.filename)?;
+                        let omeka_url = reqwest::Url::parse(&media.original_url)
+                            .inspect_err(|err| {
+                                log::warn!(
+                                    "Media with internal ID `{}` has an invalid original URL `{}`: {}",
+                                    media.internal_id,
+                                    media.original_url,
+                                    err,
+                                );
+                            })
+                            .ok()?;
 
                         Some(File {
                             title: media.maybe_localized(omeka::Property::Title, |m| &m.title)?,
@@ -652,6 +662,7 @@ impl Resolver {
                             schema_class: media.schema_class(),
                             media_type: media.media_type.clone(),
                             lang: media.lang.clone().map(Lang::new),
+                            omeka_url,
                         })
                     })
                     .collect();

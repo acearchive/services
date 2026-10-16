@@ -8,7 +8,7 @@ of the Omeka S API. It has a few responsibilities:
 2. Serve metadata that the [static site](https://github.com/acearchive/site)
    ingests at build time.
 3. Generate periodic data exports of the collection in portable human- and
-   machine-readable formats suitable for distribution (_not yet implemented_).
+   machine-readable formats suitable for distribution.
 
 ## What it does
 
@@ -71,7 +71,38 @@ This service generates periodic data exports of the collection in portable
 human- and machine-readable formats suitable for distribution.
 
 Each export builds a `.zip` file and pushes it to an S3 bucket for interested
-parties to download.
+parties to download. The archive has this layout:
+
+```
+README.txt
+metadata.jsonld
+files/{slug}/{filename}
+```
+
+`metadata.jsonld` contains the full JSON-LD graph of the collection, including
+the project-specific `ace:slug` and `ace:filename` terms, which can be used to
+locate each file under `files/`. The contents of `README.txt` live in
+[`src/assets/export-readme.txt`](./src/assets/export-readme.txt).
+
+Archives are uploaded to the bucket under these keys, with timestamps in UTC:
+
+```
+daily/%Y-%m-%dT%H:%M:%S.zip
+weekly/%Y-%m-%dT%H:%M:%S.zip
+monthly/%Y-%m-%dT%H:%M:%S.zip
+latest.zip
+```
+
+Exports are tiered the same way as the [Omeka
+backups](https://github.com/acearchive/omeka-deployment): an export is
+`monthly` if there hasn't been a monthly export yet this month, `weekly` if
+there hasn't been a monthly or weekly export yet this week (starting Monday),
+and `daily` otherwise. Bucket lifecycle rules prune old exports. `latest.zip`
+is a copy of the most recent export.
+
+After each export, this service pings a [Healthchecks.io](https://healthchecks.io)
+endpoint, if one is configured, so we are notified if exports stop happening.
+It pings `/start` when an export begins and `/fail` when one fails.
 
 ## Configuration
 
@@ -92,7 +123,17 @@ from a `.env` file if one is available.
   collection in memory. This should be long enough to last through a build of
   the static site.
 - `DATA_EXPORT_CRON_SPEC`: A cron spec which determines the frequency of
-  automatic data exports. If unset, automatic data exports are disabled.
+  automatic data exports, evaluated in UTC. If unset, automatic data exports
+  are disabled, and the other `DATA_EXPORT_*` variables are ignored.
+- `DATA_EXPORT_BUCKET`: The name of the S3 bucket to upload data exports to.
+- `DATA_EXPORT_S3_ENDPOINT`: The S3 API endpoint, such as
+  `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` for Cloudflare R2.
+- `DATA_EXPORT_S3_REGION`: The S3 region. Defaults to `auto`, which is what R2
+  expects.
+- `DATA_EXPORT_S3_ACCESS_KEY_ID`: The S3 access key ID.
+- `DATA_EXPORT_S3_SECRET_ACCESS_KEY`: The S3 secret access key.
+- `DATA_EXPORT_HEALTHCHECK_PING_URL`: An optional
+  [Healthchecks.io](https://healthchecks.io) ping URL.
 
 ## Deployment
 

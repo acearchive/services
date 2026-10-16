@@ -45,6 +45,8 @@ pub struct File {
     pub media_type: String,
     // The language of the file's contents, which may differ from the language of its title.
     pub lang: Option<Lang>,
+    // Where the original file is hosted in Omeka.
+    pub omeka_url: reqwest::Url,
 }
 
 #[derive(Debug, Clone)]

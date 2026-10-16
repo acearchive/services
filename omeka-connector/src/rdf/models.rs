@@ -362,6 +362,14 @@ impl ModelSerializer {
         Ok(())
     }
 
+    pub fn add_items(&mut self, items: &[models::Item]) -> anyhow::Result<()> {
+        for item in items {
+            self.add_item(item)?;
+        }
+
+        Ok(())
+    }
+
     fn item_iri(item: &models::Item) -> anyhow::Result<Iri> {
         Ok(Iri::from_web_url(&url::artifact_short(&item.id)?))
     }
