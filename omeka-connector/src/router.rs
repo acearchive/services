@@ -30,9 +30,9 @@ pub fn new() -> Router {
         .route("/jsonld", get(get_jsonld))
         .route("/jsonld/items/{id}", get(get_jsonld_item))
         .route("/jsonld/files/{id}/{*filename}", get(get_jsonld_file))
-        .route("/jsonld/people/{slug}", get(get_jsonld_person))
-        .route("/jsonld/identities/{slug}", get(get_jsonld_identity))
-        .route("/jsonld/collections/{slug}", get(get_jsonld_collection))
+        .route("/jsonld/people/{name}", get(get_jsonld_person))
+        .route("/jsonld/identities/{name}", get(get_jsonld_identity))
+        .route("/jsonld/collections/{name}", get(get_jsonld_collection))
         .route("/assets/style.css", get(get_asset_style))
         .route("/assets/script.js", get(get_asset_script))
 }
@@ -261,9 +261,9 @@ async fn get_jsonld_file(
 }
 
 #[axum::debug_handler]
-async fn get_jsonld_person(Path(slug): Path<String>) -> Result<impl IntoResponse, StatusCode> {
+async fn get_jsonld_person(Path(name): Path<String>) -> Result<impl IntoResponse, StatusCode> {
     let (person, items) = new_resolver()?
-        .find_person(&slug)
+        .find_person(&name)
         .await
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
         .ok_or(StatusCode::NOT_FOUND)?;
@@ -278,9 +278,9 @@ async fn get_jsonld_person(Path(slug): Path<String>) -> Result<impl IntoResponse
 }
 
 #[axum::debug_handler]
-async fn get_jsonld_identity(Path(slug): Path<String>) -> Result<impl IntoResponse, StatusCode> {
+async fn get_jsonld_identity(Path(name): Path<String>) -> Result<impl IntoResponse, StatusCode> {
     let (identity, items) = new_resolver()?
-        .find_identity(&slug)
+        .find_identity(&name)
         .await
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
         .ok_or(StatusCode::NOT_FOUND)?;
@@ -295,9 +295,9 @@ async fn get_jsonld_identity(Path(slug): Path<String>) -> Result<impl IntoRespon
 }
 
 #[axum::debug_handler]
-async fn get_jsonld_collection(Path(slug): Path<String>) -> Result<impl IntoResponse, StatusCode> {
+async fn get_jsonld_collection(Path(name): Path<String>) -> Result<impl IntoResponse, StatusCode> {
     let (collection, items) = new_resolver()?
-        .find_collection(&slug)
+        .find_collection(&name)
         .await
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
         .ok_or(StatusCode::NOT_FOUND)?;

@@ -1,7 +1,22 @@
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
+
 use crate::{config, omeka};
 
-pub fn slugify(value: &str) -> String {
-    value.to_lowercase().replace(' ', "-")
+/// The characters Go's `url.PathEscape` escapes, to match Hugo's `urls.PathEscape`.
+const PATH_SEGMENT: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~')
+    .remove(b'$')
+    .remove(b'&')
+    .remove(b'+')
+    .remove(b':')
+    .remove(b'=')
+    .remove(b'@');
+
+fn encode_segment(value: &str) -> String {
+    utf8_percent_encode(value, PATH_SEGMENT).to_string()
 }
 
 pub fn artifact_long(slug: &omeka::AceSlug) -> anyhow::Result<reqwest::Url> {
@@ -66,7 +81,7 @@ pub fn person(name: &str) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/people/{}",
         config::base_domain()?,
-        slugify(name)
+        encode_segment(name)
     ))?)
 }
 
@@ -74,7 +89,7 @@ pub fn identity(name: &str) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/identities/{}",
         config::base_domain()?,
-        slugify(name)
+        encode_segment(name)
     ))?)
 }
 
@@ -89,6 +104,6 @@ pub fn collection(name: &str) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/collections/{}",
         config::base_domain()?,
-        slugify(name)
+        encode_segment(name)
     ))?)
 }

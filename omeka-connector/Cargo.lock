@@ -13,6 +13,7 @@ dependencies = [
  "log",
  "lru",
  "parse_link_header",
+ "percent-encoding",
  "reqwest",
  "serde",
  "serde_json",

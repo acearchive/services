@@ -402,14 +402,14 @@ impl Resolver {
         }))
     }
 
-    /// Find the person with the given slug, along with every item they created.
-    pub async fn find_person(&self, slug: &str) -> anyhow::Result<Option<(Person, Vec<Item>)>> {
+    /// Find the person with the given name, along with every item they created.
+    pub async fn find_person(&self, name: &str) -> anyhow::Result<Option<(Person, Vec<Item>)>> {
         let items = self.list_all_items().await?;
 
         let Some(person) = items
             .iter()
             .flat_map(|item| &item.people)
-            .find(|person| url::slugify(&person.name) == slug)
+            .find(|person| person.name == name)
             .cloned()
         else {
             return Ok(None);
@@ -424,14 +424,14 @@ impl Resolver {
         Ok(Some((person, creations)))
     }
 
-    /// Find the identity with the given slug, along with every item about it.
-    pub async fn find_identity(&self, slug: &str) -> anyhow::Result<Option<(Identity, Vec<Item>)>> {
+    /// Find the identity with the given name, along with every item about it.
+    pub async fn find_identity(&self, name: &str) -> anyhow::Result<Option<(Identity, Vec<Item>)>> {
         let items = self.list_all_items().await?;
 
         let Some(identity) = items
             .iter()
             .flat_map(|item| &item.identities)
-            .find(|identity| url::slugify(&identity.name.value) == slug)
+            .find(|identity| identity.name.value == name)
             .cloned()
         else {
             return Ok(None);
@@ -450,16 +450,16 @@ impl Resolver {
         Ok(Some((identity, subjects)))
     }
 
-    /// Find the collection with the given slug, along with every item in it.
+    /// Find the collection with the given title, along with every item in it.
     pub async fn find_collection(
         &self,
-        slug: &str,
+        name: &str,
     ) -> anyhow::Result<Option<(Collection, Vec<Item>)>> {
         let Some(collection) = self
             .list_all_collections()
             .await?
             .iter()
-            .find(|collection| url::slugify(&collection.title.value) == slug)
+            .find(|collection| collection.title.value == name)
             .cloned()
         else {
             return Ok(None);
