@@ -1,17 +1,3 @@
-//! Periodic data exports of the whole collection.
-//!
-//! Each export is a ZIP archive with this layout:
-//!
-//! ```text
-//! README.txt
-//! metadata.jsonld
-//! files/{slug}/{filename}
-//! ```
-//!
-//! Archives are uploaded to an S3 bucket under `daily/`, `weekly/`, and `monthly/` prefixes using
-//! the same tiering as the Omeka backups, and the most recent one is also uploaded as
-//! `latest.zip`. Bucket lifecycle rules handle pruning old exports.
-
 use std::{
     fs,
     io::{self, Write},
@@ -25,6 +11,7 @@ use tokio::runtime::Handle;
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 use crate::{
+    assets,
     config::{self, DataExportConfig},
     models::Item,
     omeka,
@@ -35,7 +22,6 @@ use crate::{
 const STAMP_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const LATEST_KEY: &str = "latest.zip";
 const SCRATCH_PREFIX: &str = "data-export-";
-const README: &str = include_str!("assets/export-readme.txt");
 const PING_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,16 +71,16 @@ pub async fn run_scheduler(export_config: DataExportConfig) {
 
         tokio::time::sleep((next - now).to_std().unwrap_or_default()).await;
 
-        ping(&export_config, Some("start")).await;
+        ping(&export_config, PingKind::Start).await;
 
         match export(&export_config).await {
             Ok(key) => {
                 log::info!("Data export uploaded as `{}`.", key);
-                ping(&export_config, None).await;
+                ping(&export_config, PingKind::Success).await;
             }
             Err(err) => {
                 log::error!("Data export failed: {:#}", err);
-                ping(&export_config, Some("fail")).await;
+                ping(&export_config, PingKind::Failure).await;
             }
         }
     }
@@ -212,8 +198,7 @@ async fn build_archive(path: &Path, now: DateTime<Utc>) -> anyhow::Result<()> {
     let resolver = Resolver::new(omeka::Client::from_config(reqwest::Client::new())?);
     let items = resolver.list_all_items().await?;
 
-    // Include project-specific terms so users can locate each file in the archive by its
-    // `ace:slug` and `ace:filename`.
+    // Include project-specific terms so users can locate files in the archive.
     let mut serializer = ModelSerializer::new(ModelOptions {
         include_private_terms: true,
     });
@@ -260,18 +245,16 @@ fn write_archive(
 
     let options = SimpleFileOptions::default().last_modified_time(now.naive_utc().try_into()?);
 
-    let text_options = options.compression_method(CompressionMethod::Deflated);
-
-    // Media files are generally already compressed, so we store them as-is. They may also be
-    // larger than 4 GiB, which requires ZIP64.
-    let file_options = options
+    // Media files are generally already compressed, so we store them as-is. They may also be larger
+    // than 4 GiB, which requires ZIP64.
+    let options = options
         .compression_method(CompressionMethod::Stored)
         .large_file(true);
 
-    zip.start_file("README.txt", text_options)?;
-    zip.write_all(README.as_bytes())?;
+    zip.start_file("README.txt", options)?;
+    zip.write_all(assets::render_export_readme(now).as_bytes())?;
 
-    zip.start_file("metadata.jsonld", text_options)?;
+    zip.start_file("metadata.jsonld", options)?;
     serde_json::to_writer_pretty(&mut zip, metadata)?;
 
     for item in items {
@@ -282,7 +265,7 @@ fn write_archive(
                 .block_on(client.get(file.omeka_url.clone()).send())?
                 .error_for_status()?;
 
-            zip.start_file(entry.as_str(), file_options)?;
+            zip.start_file(entry.as_str(), options)?;
 
             // Stream the file into the archive so we never hold a whole file in memory.
             while let Some(chunk) = handle.block_on(response.chunk())? {
@@ -337,10 +320,21 @@ fn remove_stale_archives() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy)]
+enum PingKind {
+    Start,
+    Success,
+    Failure,
+}
+
 /// Ping the healthcheck endpoint, if one is configured.
-///
-/// The suffix is appended as a path segment, such as `start` or `fail`.
-async fn ping(export_config: &DataExportConfig, suffix: Option<&str>) {
+async fn ping(export_config: &DataExportConfig, kind: PingKind) {
+    let suffix = match kind {
+        PingKind::Start => Some("start"),
+        PingKind::Success => None,
+        PingKind::Failure => Some("fail"),
+    };
+
     let Some(base_url) = &export_config.healthcheck_ping_url else {
         return;
     };

@@ -1,5 +1,7 @@
 use std::{fmt, sync::LazyLock};
 
+use chrono::{DateTime, Utc};
+
 use super::{config, resolver::MediaLocation};
 
 static TEMPLATES: LazyLock<tera::Tera> = LazyLock::new(|| {
@@ -28,6 +30,10 @@ static TEMPLATES: LazyLock<tera::Tera> = LazyLock::new(|| {
     let template = include_str!("assets/style.css");
     tera.add_raw_template("style", template)
         .expect("Failed to add style template.");
+
+    let template = include_str!("assets/export-readme.txt");
+    tera.add_raw_template("export-readme", template)
+        .expect("Failed to add export README template.");
 
     tera
 });
@@ -131,4 +137,16 @@ pub fn render_css(base_domain: &str) -> String {
     TEMPLATES
         .render("style", &template_context)
         .expect("Failed to render style template.")
+}
+
+pub fn render_export_readme(exported_at: DateTime<Utc>) -> String {
+    let mut template_context = tera::Context::new();
+    template_context.insert(
+        "timestamp",
+        &exported_at.format("%-d %b %Y %H:%M:%S UTC").to_string(),
+    );
+
+    TEMPLATES
+        .render("export-readme", &template_context)
+        .expect("Failed to render export README template.")
 }

@@ -70,21 +70,8 @@ time and removes significant complexity from the static site template.
 This service generates periodic data exports of the collection in portable
 human- and machine-readable formats suitable for distribution.
 
-Each export builds a `.zip` file and pushes it to an S3 bucket for interested
-parties to download. The archive has this layout:
-
-```
-README.txt
-metadata.jsonld
-files/{slug}/{filename}
-```
-
-`metadata.jsonld` contains the full JSON-LD graph of the collection, including
-the project-specific `ace:slug` and `ace:filename` terms, which can be used to
-locate each file under `files/`. The contents of `README.txt` live in
-[`src/assets/export-readme.txt`](./src/assets/export-readme.txt).
-
-Archives are uploaded to the bucket under these keys, with timestamps in UTC:
+Each export builds a `.zip` file and pushes it to an S3 bucket. Archives are
+uploaded to the bucket under these keys, with timestamps in UTC:
 
 ```
 daily/%Y-%m-%dT%H:%M:%S.zip
@@ -93,16 +80,19 @@ monthly/%Y-%m-%dT%H:%M:%S.zip
 latest.zip
 ```
 
-Exports are tiered the same way as the [Omeka
-backups](https://github.com/acearchive/omeka-deployment): an export is
+Data exports have a lifecycle similar to [Omeka
+backups](https://github.com/acearchive/omeka-deployment); an export is
 `monthly` if there hasn't been a monthly export yet this month, `weekly` if
 there hasn't been a monthly or weekly export yet this week (starting Monday),
-and `daily` otherwise. Bucket lifecycle rules prune old exports. `latest.zip`
-is a copy of the most recent export.
+and `daily` otherwise. Bucket rule rules prune old exports and prevent deletion
+before they've expired. `latest.zip` is a copy of the most recent export.
 
-After each export, this service pings a [Healthchecks.io](https://healthchecks.io)
-endpoint, if one is configured, so we are notified if exports stop happening.
-It pings `/start` when an export begins and `/fail` when one fails.
+After each export, this service pings a
+[Healthchecks.io](https://healthchecks.io) endpoint, if one is configured, so
+we are notified if exports stop happening.
+
+See the [README.txt](./src/assets/export-readme.txt) for details about the
+structure and format of the export.
 
 ## Configuration
 
@@ -126,10 +116,8 @@ from a `.env` file if one is available.
   automatic data exports, evaluated in UTC. If unset, automatic data exports
   are disabled, and the other `DATA_EXPORT_*` variables are ignored.
 - `DATA_EXPORT_BUCKET`: The name of the S3 bucket to upload data exports to.
-- `DATA_EXPORT_S3_ENDPOINT`: The S3 API endpoint, such as
-  `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` for Cloudflare R2.
-- `DATA_EXPORT_S3_REGION`: The S3 region. Defaults to `auto`, which is what R2
-  expects.
+- `DATA_EXPORT_S3_ENDPOINT`: The S3 API endpoint.
+- `DATA_EXPORT_S3_REGION`: The S3 region.
 - `DATA_EXPORT_S3_ACCESS_KEY_ID`: The S3 access key ID.
 - `DATA_EXPORT_S3_SECRET_ACCESS_KEY`: The S3 secret access key.
 - `DATA_EXPORT_HEALTHCHECK_PING_URL`: An optional
