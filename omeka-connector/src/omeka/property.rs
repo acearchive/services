@@ -125,10 +125,10 @@ impl Property {
             Property::SlugAlias => "ace:slugAlias",
             Property::Filename => "ace:filename",
             Property::FilenameAlias => "ace:filenameAlias",
-            Property::Title => "dcterms:title",
-            Property::Abstract => "dcterms:abstract",
-            Property::Description => "dcterms:description",
-            Property::Created => "dcterms:created",
+            Property::Title => "schema:name",
+            Property::Abstract => "schema:abstract",
+            Property::Description => "schema:description",
+            Property::Created => "schema:dateCreated",
         }
     }
 }

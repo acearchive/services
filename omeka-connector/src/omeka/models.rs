@@ -222,25 +222,25 @@ pub struct ItemResponse {
     #[serde(default, rename = "ace:slugAlias")]
     pub slug_alias: Vec<LiteralPropertyValue<AceSlug>>,
 
-    #[serde(default, rename = "dcterms:title")]
+    #[serde(default, rename = "schema:name")]
     pub title: Vec<LiteralPropertyValue<String>>,
 
-    #[serde(default, rename = "dcterms:description")]
+    #[serde(default, rename = "schema:description")]
     pub description: Vec<LiteralPropertyValue<String>>,
 
-    #[serde(default, rename = "dcterms:abstract")]
+    #[serde(default, rename = "schema:abstract")]
     pub summary: Vec<LiteralPropertyValue<String>>,
 
-    #[serde(default, rename = "dcterms:created")]
+    #[serde(default, rename = "schema:dateCreated")]
     pub created: Vec<LiteralPropertyValue<String>>,
 
-    #[serde(default, rename = "dcterms:creator")]
+    #[serde(default, rename = "schema:creator")]
     pub creator: Vec<ResourcePropertyValue>,
 
-    #[serde(default, rename = "dcterms:subject")]
+    #[serde(default, rename = "schema:about")]
     pub subject: Vec<SuggestedPropertyValue>,
 
-    #[serde(default, rename = "dcterms:relation")]
+    #[serde(default, rename = "rdfs:seeAlso")]
     pub relation: Vec<UrlPropertyValue>,
 
     #[serde(default, rename = "o:media")]
@@ -286,10 +286,10 @@ pub struct ItemSetResponse {
     #[serde(rename = "@type")]
     pub json_ld_type: JsonLdType,
 
-    #[serde(rename = "dcterms:title")]
+    #[serde(rename = "schema:name")]
     pub title: Vec<LiteralPropertyValue<String>>,
 
-    #[serde(rename = "dcterms:description")]
+    #[serde(rename = "schema:description")]
     pub description: Vec<LiteralPropertyValue<String>>,
 }
 
@@ -330,7 +330,7 @@ pub struct MediaResponse {
     #[serde(rename = "o:lang")]
     pub lang: Option<String>,
 
-    #[serde(rename = "dcterms:title")]
+    #[serde(rename = "schema:name")]
     pub title: Vec<LiteralPropertyValue<String>>,
 
     #[serde(rename = "ace:filename")]
