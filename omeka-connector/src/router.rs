@@ -316,11 +316,22 @@ async fn get_asset_style() -> Result<impl IntoResponse, StatusCode> {
 
     let css = render_css(&base_domain);
 
-    Ok((StatusCode::OK, [("Content-Type", "text/css")], css))
+    Ok((
+        StatusCode::OK,
+        [("Content-Type", "text/css"), ("Cache-Control", "no-cache")],
+        css,
+    ))
 }
 
 #[axum::debug_handler]
 async fn get_asset_script() -> impl IntoResponse {
     let js = include_str!("assets/script.js");
-    (StatusCode::OK, [("Content-Type", "text/javascript")], js)
+    (
+        StatusCode::OK,
+        [
+            ("Content-Type", "text/javascript"),
+            ("Cache-Control", "no-cache"),
+        ],
+        js,
+    )
 }
