@@ -7,10 +7,6 @@ impl Iri {
     pub fn new<T: Into<Cow<'static, str>>>(iri: T) -> Self {
         Self(iri.into())
     }
-
-    pub const fn from_static(iri: &'static str) -> Self {
-        Self(Cow::Borrowed(iri))
-    }
 }
 
 impl fmt::Display for Iri {
@@ -42,10 +38,6 @@ pub struct Lang(Cow<'static, str>);
 impl Lang {
     pub fn new<T: Into<Cow<'static, str>>>(lang: T) -> Self {
         Self(lang.into())
-    }
-
-    pub const fn from_static(lang: &'static str) -> Self {
-        Self(Cow::Borrowed(lang))
     }
 }
 
