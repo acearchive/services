@@ -112,6 +112,7 @@ pub enum Property {
     Abstract,
     Created,
     Description,
+    Language,
 }
 
 impl Property {
@@ -129,6 +130,7 @@ impl Property {
             Property::Abstract => "schema:abstract",
             Property::Description => "schema:description",
             Property::Created => "schema:dateCreated",
+            Property::Language => "schema:inLanguage",
         }
     }
 }

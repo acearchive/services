@@ -566,6 +566,15 @@ impl Resolver {
                 let description = item_response
                     .maybe_localized(omeka::Property::Description, |i| &i.description);
                 let schema_class = item_response.schema_class();
+                let lang = item_response.maybe_lang().inspect(|lang| {
+                        if lang.autonym().is_none() {
+                            log::warn!(
+                                "Item with internal ID `{}` has language `{}`, which is not a known ISO 639-1 language.",
+                                item_response.internal_id,
+                                lang,
+                            );
+                        }
+                    });
 
                 // Multi-value properties.
                 let people = item_response
@@ -674,6 +683,7 @@ impl Resolver {
                     title,
                     description,
                     summary,
+                    lang,
                     aliases,
                     from_year,
                     to_year,

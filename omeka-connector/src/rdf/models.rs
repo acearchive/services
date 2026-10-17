@@ -315,6 +315,14 @@ impl ModelSerializer {
             );
         }
 
+        if let Some(lang) = &item.lang {
+            self.graph.insert(
+                item_iri.clone(),
+                NS.schema.get("inLanguage"),
+                Literal::from(lang.to_string()),
+            );
+        }
+
         // The `schema::dateCreated` term only supports individual years, not ranges.
         self.graph.insert(
             item_iri.clone(),

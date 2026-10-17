@@ -29,6 +29,8 @@ pub struct Item {
     pub title: String,
     pub summary: String,
     pub description: Option<String>,
+    /// The name of the item's language in that language (e.g. `Deutsch`).
+    pub language: Option<String>,
     pub from_year: u32,
     pub to_year: Option<u32>,
     pub decades: Vec<u32>,
@@ -105,6 +107,7 @@ impl TryFrom<models::Item> for Item {
             title: item.title.value,
             summary: item.summary.value,
             description: item.description.map(|description| description.value),
+            language: item.lang.and_then(|lang| lang.autonym()).map(String::from),
             from_year: item.from_year,
             to_year: item.to_year,
             decades,

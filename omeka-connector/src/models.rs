@@ -9,6 +9,13 @@ impl Lang {
     pub fn new<S: Into<Cow<'static, str>>>(s: S) -> Self {
         Lang(s.into())
     }
+
+    /// The name of this language in that language (e.g. `Deutsch` for `de`), if the tag's primary
+    /// subtag is a known ISO 639-1 code.
+    pub fn autonym(&self) -> Option<&'static str> {
+        let primary_subtag = self.0.split('-').next()?.to_ascii_lowercase();
+        isolang::Language::from_639_1(&primary_subtag)?.to_autonym()
+    }
 }
 
 impl fmt::Display for Lang {
@@ -85,6 +92,8 @@ pub struct Item {
     pub title: LocalizedString,
     pub summary: LocalizedString,
     pub description: Option<LocalizedString>,
+    // The language of the item itself, which may differ from the language of its metadata.
+    pub lang: Option<Lang>,
     pub from_year: u32,
     pub to_year: Option<u32>,
     pub files: Vec<File>,
@@ -92,4 +101,17 @@ pub struct Item {
     pub people: Vec<Person>,
     pub identities: Vec<Identity>,
     pub collections: Vec<Collection>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Lang;
+
+    #[test]
+    fn localizes_language_names() {
+        assert_eq!(Lang::new("de").autonym(), Some("Deutsch"));
+        assert_eq!(Lang::new("pt-BR").autonym(), Some("português"));
+        assert_eq!(Lang::new("EN").autonym(), Some("English"));
+        assert_eq!(Lang::new("zz").autonym(), None);
+    }
 }

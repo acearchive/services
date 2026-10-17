@@ -186,6 +186,30 @@ impl UrlPropertyValue {
     }
 }
 
+/// A language from the Library of Congress ISO 639-1 vocabulary, like
+/// `http://id.loc.gov/vocabulary/iso639-1/en`.
+#[derive(Debug, Deserialize)]
+pub struct LanguagePropertyValue {
+    #[serde(rename = "@id")]
+    pub url: String,
+}
+
+impl LanguagePropertyValue {
+    /// Parse the ISO 639-1 code out of the URL.
+    pub fn code(&self) -> Option<String> {
+        let url = reqwest::Url::parse(&self.url).ok()?;
+
+        if url.host_str() != Some("id.loc.gov") {
+            return None;
+        }
+
+        match url.path_segments()?.collect::<Vec<_>>().as_slice() {
+            ["vocabulary", "iso639-1", code] if !code.is_empty() => Some(code.to_string()),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ResourcePropertyValue {
     #[serde(rename = "display_title")]
@@ -234,6 +258,9 @@ pub struct ItemResponse {
     #[serde(default, rename = "schema:dateCreated")]
     pub created: Vec<LiteralPropertyValue<String>>,
 
+    #[serde(default, rename = "schema:inLanguage")]
+    pub language: Vec<LanguagePropertyValue>,
+
     #[serde(default, rename = "schema:creator")]
     pub creator: Vec<ResourcePropertyValue>,
 
@@ -261,6 +288,31 @@ impl ItemResponse {
         F: FnOnce(&ItemResponse) -> &[LiteralPropertyValue<T>],
     {
         expect_one(ResourceType::Item, self.internal_id, property, f(self)).map(|v| v.value)
+    }
+
+    pub fn maybe_lang(&self) -> Option<Lang> {
+        let value = self.language.first()?;
+
+        if self.language.len() > 1 {
+            log::warn!(
+                "Item with internal ID `{}` has multiple values for property `{}`. Using the first one: {}",
+                self.internal_id,
+                Property::Language,
+                value.url,
+            );
+        }
+
+        let Some(code) = value.code() else {
+            log::warn!(
+                "Item with internal ID `{}` has language `{}`, which is not an ISO 639-1 language URL. Ignoring it.",
+                self.internal_id,
+                value.url,
+            );
+
+            return None;
+        };
+
+        Some(Lang::new(code))
     }
 
     pub fn expect_localized<F>(&self, property: Property, f: F) -> anyhow::Result<LocalizedString>
@@ -363,5 +415,32 @@ impl MediaResponse {
         F: FnOnce(&MediaResponse) -> &[LiteralPropertyValue<String>],
     {
         maybe_one(ResourceType::Media, self.internal_id, property, f(self)).map(Into::into)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LanguagePropertyValue;
+
+    fn code(url: &str) -> Option<String> {
+        LanguagePropertyValue {
+            url: url.to_string(),
+        }
+        .code()
+    }
+
+    #[test]
+    fn parses_language_urls() {
+        assert_eq!(
+            code("http://id.loc.gov/vocabulary/iso639-1/en"),
+            Some(String::from("en"))
+        );
+        assert_eq!(
+            code("https://id.loc.gov/vocabulary/iso639-1/de"),
+            Some(String::from("de"))
+        );
+        assert_eq!(code("http://id.loc.gov/vocabulary/iso639-2/eng"), None);
+        assert_eq!(code("http://example.com/vocabulary/iso639-1/en"), None);
+        assert_eq!(code("en"), None);
     }
 }
