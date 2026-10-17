@@ -1,8 +1,9 @@
 use std::{fmt, sync::LazyLock};
 
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 
-use super::{config, resolver::MediaLocation};
+use super::{config, models, resolver::MediaLocation};
 
 static TEMPLATES: LazyLock<tera::Tera> = LazyLock::new(|| {
     let mut tera = tera::Tera::default();
@@ -34,6 +35,10 @@ static TEMPLATES: LazyLock<tera::Tera> = LazyLock::new(|| {
     let template = include_str!("assets/export-readme.txt");
     tera.add_raw_template("export-readme", template)
         .expect("Failed to add export README template.");
+
+    let template = include_str!("assets/item-readme.md");
+    tera.add_raw_template("item-readme", template)
+        .expect("Failed to add item README template.");
 
     tera
 });
@@ -149,4 +154,210 @@ pub fn render_export_readme(exported_at: DateTime<Utc>) -> String {
     TEMPLATES
         .render("export-readme", &template_context)
         .expect("Failed to render export README template.")
+}
+
+// Optional fields are omitted rather than serialized as `null`, because Tera considers `null`
+// values to be defined.
+
+#[derive(Debug, Serialize)]
+struct ReadmeItem<'a> {
+    title: &'a str,
+    summary: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<&'a str>,
+    from_year: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    to_year: Option<u32>,
+    people: Vec<ReadmeName<'a>>,
+    identities: Vec<ReadmeName<'a>>,
+    collections: Vec<ReadmeCollection<'a>>,
+    links: Vec<ReadmeLink<'a>>,
+    files: Vec<ReadmeFile<'a>>,
+}
+
+#[derive(Debug, Serialize)]
+struct ReadmeName<'a> {
+    name: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct ReadmeCollection<'a> {
+    title: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<&'a str>,
+}
+
+#[derive(Debug, Serialize)]
+struct ReadmeLink<'a> {
+    title: &'a str,
+    url: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct ReadmeFile<'a> {
+    title: &'a str,
+    filename: &'a str,
+}
+
+impl<'a> ReadmeItem<'a> {
+    fn from_model(item: &'a models::Item) -> Self {
+        Self {
+            title: &item.title.value,
+            summary: &item.summary.value,
+            description: item.description.as_ref().map(|d| d.value.as_str()),
+            from_year: item.from_year,
+            to_year: item.to_year,
+            people: item
+                .people
+                .iter()
+                .map(|person| ReadmeName { name: &person.name })
+                .collect(),
+            identities: item
+                .identities
+                .iter()
+                .map(|identity| ReadmeName {
+                    name: &identity.name.value,
+                })
+                .collect(),
+            collections: item
+                .collections
+                .iter()
+                .map(|collection| ReadmeCollection {
+                    title: &collection.title.value,
+                    description: collection.description.as_ref().map(|d| d.value.as_str()),
+                })
+                .collect(),
+            links: item
+                .links
+                .iter()
+                .map(|link| ReadmeLink {
+                    title: &link.title.value,
+                    url: link.url.as_str(),
+                })
+                .collect(),
+            files: item
+                .files
+                .iter()
+                .map(|file| ReadmeFile {
+                    title: &file.title.value,
+                    filename: file.filename.as_ref(),
+                })
+                .collect(),
+        }
+    }
+}
+
+pub fn render_item_readme(item: &models::Item) -> String {
+    let mut template_context = tera::Context::new();
+    template_context.insert("item", &ReadmeItem::from_model(item));
+
+    let readme = TEMPLATES
+        .render("item-readme", &template_context)
+        .expect("Failed to render item README template.");
+
+    wrap_markdown(&readme, README_WIDTH)
+}
+
+const README_WIDTH: usize = 80;
+
+/// Hard-wrap each line of a Markdown document, indenting continuation lines of list items.
+///
+/// Headings are left as-is because they can't span multiple lines, and words longer than the
+/// width (like URLs) are never broken.
+fn wrap_markdown(text: &str, width: usize) -> String {
+    let mut wrapped = String::with_capacity(text.len());
+
+    for line in text.split_inclusive('\n') {
+        let (line, newline) = match line.strip_suffix('\n') {
+            Some(line) => (line, "\n"),
+            None => (line, ""),
+        };
+
+        if line.chars().count() <= width || line.trim_start().starts_with('#') {
+            wrapped.push_str(line);
+            wrapped.push_str(newline);
+            continue;
+        }
+
+        let prefix_len = list_prefix_len(line);
+        let indent = " ".repeat(prefix_len);
+        let mut current = String::from(&line[..prefix_len]);
+        let mut current_len = prefix_len;
+        let mut has_word = false;
+
+        for word in line[prefix_len..].split_whitespace() {
+            let word_len = word.chars().count();
+
+            if has_word && current_len + 1 + word_len > width {
+                wrapped.push_str(&current);
+                wrapped.push('\n');
+                current.clone_from(&indent);
+                current_len = prefix_len;
+                has_word = false;
+            }
+
+            if has_word {
+                current.push(' ');
+                current_len += 1;
+            }
+
+            current.push_str(word);
+            current_len += word_len;
+            has_word = true;
+        }
+
+        wrapped.push_str(&current);
+        wrapped.push_str(newline);
+    }
+
+    wrapped
+}
+
+/// The length of a line's leading indentation and list marker (e.g. `- ` or `1. `), if any.
+fn list_prefix_len(line: &str) -> usize {
+    let indent = line.len() - line.trim_start_matches(' ').len();
+    let rest = &line[indent..];
+
+    let marker = if rest.starts_with("- ") || rest.starts_with("* ") || rest.starts_with("+ ") {
+        2
+    } else {
+        let digits = rest.len() - rest.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+
+        if digits > 0 && rest[digits..].starts_with(". ") {
+            digits + 2
+        } else {
+            0
+        }
+    };
+
+    indent + marker
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wrap_markdown;
+
+    #[test]
+    fn wraps_paragraphs() {
+        let text = "one two three four five six\n";
+        assert_eq!(wrap_markdown(text, 10), "one two\nthree four\nfive six\n");
+    }
+
+    #[test]
+    fn indents_list_items() {
+        let text = "- one two three four\n12. one two three\n";
+        assert_eq!(
+            wrap_markdown(text, 10),
+            "- one two\n  three\n  four\n12. one\n    two\n    three\n"
+        );
+    }
+
+    #[test]
+    fn leaves_headings_and_long_words() {
+        let text = "# a heading that is long\nhttps://example.com/long a\n";
+        assert_eq!(
+            wrap_markdown(text, 10),
+            "# a heading that is long\nhttps://example.com/long\na\n"
+        );
+    }
 }

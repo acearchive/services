@@ -9,21 +9,48 @@ https://acearchive.lgbt
 
 This data export contains the full Ace Archive collection—data and metadata.
 This export is designed to be both human- and machine-readable; you can parse
-the data with a computer program, import it into another system, or just
-browse.
+the data with a computer program, import it into another system, or just browse
+by hand.
 
 This data was exported on: {{ timestamp }}
 
 What's in this folder?
 ======================
 
-In this folder you'll find a file named `metadata.jsonld`, which contains the
-metadata for the entire collection in JSON-LD format. This folder also contains
-a subfolder named `files`, which contains all of the files in the collection,
-organized by which item they're associated with.
+The `metadata.jsonld` file contains the metadata for the entire collection in a
+computer-readable format.
+
+In the `items` folder, you'll find a subfolder for each item in the collection.
+For each item, you'll find:
+
+* A file named `metadata.md` which contains that item's metadata in a
+  human-readable format.
+* A folder named `files` which contains all of the files associated with that
+  item.
+
+Here's an example of what the folder structure looks like:
+
+    /
+    ├── README.txt
+    ├── metadata.jsonld
+    └── items/
+        ├── orlando-the-asexual-manifest/
+        │   ├── metadata.md
+        │   └── files/
+        │       ├── the-asexual-manifesto.pdf
+        │       └── the-asexual-manifesto-transcript.html
+        └── carroll-toby-an-asexual-person/
+            ├── metadata.md
+            └── files/
+                ├── toby-an-asexual-person.png
+                ├── toby-an-asexual-person-transcript.html
+                └── sexuality-now-embracing-diversity.bib
 
 How do I read the metadata?
 ===========================
+
+The `metadata.md` files are written in plain text; you can open them in any
+text editor and read them yourself.
 
 The metadata in `metadata.jsonld` is in JSON-LD format. JSON-LD is a computer
 language for storing data. You can open this file in a text editor and read it
@@ -56,16 +83,16 @@ that these URLs are identifiers, not links to web pages.
     `https://acearchive.lgbt/terms/filename` (`ace:filename`)
 
 These terms are how you map metadata in `metadata.jsonld` to files in the
-`files` directory. The files directory has the following format.
+`items` folder. Files are stored like this:
 
-    files/{ace:slug}/{ace:filename}
+    items/{ace:slug}/files/{ace:filename}
 
 For example, if an item in the collection has an `ace:slug` value of
 `orlando-the-asexual-manifesto` and references a file with an `ace:filename`
 value of `the-asexual-manifesto.pdf`, you would find that file in the following
 location:
 
-    files/orlando-the-asexual-manifesto/the-asexual-manifesto.pdf
+    items/orlando-the-asexual-manifesto/files/the-asexual-manifesto.pdf
 
 How can I parse this metadata?
 ==============================

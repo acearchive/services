@@ -215,13 +215,22 @@ async fn build_archive(path: &Path, now: DateTime<Utc>) -> anyhow::Result<()> {
         .await?
 }
 
-/// The path of a file within the archive.
-fn entry_path(slug: &omeka::AceSlug, filename: &omeka::AceFilename) -> anyhow::Result<String> {
-    let path = format!("files/{}/{}", slug, filename);
+/// The path of an item's metadata file within the archive.
+fn metadata_entry_path(slug: &omeka::AceSlug) -> anyhow::Result<String> {
+    safe_entry_path(&["items", slug.as_ref(), "metadata.md"])
+}
 
-    // Defense in depth against a slug or filename that would escape `files/` when extracted.
-    let is_safe = !slug.as_ref().is_empty()
-        && !filename.as_ref().is_empty()
+/// The path of a file within the archive.
+fn file_entry_path(slug: &omeka::AceSlug, filename: &omeka::AceFilename) -> anyhow::Result<String> {
+    safe_entry_path(&["items", slug.as_ref(), "files", filename.as_ref()])
+}
+
+/// Join path segments into a path within the archive.
+fn safe_entry_path(segments: &[&str]) -> anyhow::Result<String> {
+    let path = segments.join("/");
+
+    // Defense in depth against a slug or filename that would escape `items/` when extracted.
+    let is_safe = segments.iter().all(|segment| !segment.is_empty())
         && Path::new(&path)
             .components()
             .all(|component| matches!(component, Component::Normal(_)));
@@ -258,8 +267,12 @@ fn write_archive(
     serde_json::to_writer_pretty(&mut zip, metadata)?;
 
     for item in items {
+        let entry = metadata_entry_path(&item.slug)?;
+        zip.start_file(entry.as_str(), options)?;
+        zip.write_all(assets::render_item_readme(item).as_bytes())?;
+
         for file in &item.files {
-            let entry = entry_path(&item.slug, &file.filename)?;
+            let entry = file_entry_path(&item.slug, &file.filename)?;
 
             let mut response = handle
                 .block_on(client.get(file.omeka_url.clone()).send())?
