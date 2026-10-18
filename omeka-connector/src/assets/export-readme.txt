@@ -2,15 +2,14 @@ What is this?
 =============
 
 This is a bulk data export from Ace Archive, a digital archive of queer history
-with a particular focus on the history of the asexual and aromantic
-communities.
+that focuses on the history of the asexual and aromantic communities.
 
-https://acearchive.lgbt
+https://acearchive.lgbt/
 
 This data export contains the full Ace Archive collection—data and metadata.
-This export is designed to be both human- and machine-readable; you can parse
-the data with a computer program, import it into another system, or just browse
-by hand.
+This export is designed to be both human- and machine-readable; you don't need
+special software or technical knowledge to view what's in this folder, but the
+data is structured so that a computer program could read it as well.
 
 This data was exported on: {{ timestamp }}
 
@@ -18,10 +17,10 @@ What's in this folder?
 ======================
 
 The `metadata.jsonld` file contains the metadata for the entire collection in a
-computer-readable format.
+machine-readable format.
 
-In the `items` folder, you'll find a subfolder for each item in the collection.
-For each item, you'll find:
+In the `items` folder, you'll find a sub-folder for each item in the
+collection. For each item, you'll find:
 
 * A file named `metadata.md` which contains that item's metadata in a
   human-readable format.
@@ -52,10 +51,10 @@ How do I read the metadata?
 The `metadata.md` files are written in plain text; you can open them in any
 text editor and read them yourself.
 
-The metadata in `metadata.jsonld` is in JSON-LD format. JSON-LD is a computer
-language for storing data. You can open this file in a text editor and read it
-yourself, but it is primarily intended to be read by a computer program. The
-following sections will explain the technical details of how to read this data.
+The metadata in `metadata.jsonld` is in a format called JSON-LD. JSON-LD is a
+computer language for storing data; it is primarily intended to be read by
+computer programs. The following sections will explain the technical details of
+how to read this data.
 
 What is JSON-LD?
 ================
