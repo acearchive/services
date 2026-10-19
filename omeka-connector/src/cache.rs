@@ -25,7 +25,7 @@ pub fn put_media_location(key: MediaLocator, value: MediaLocation) -> anyhow::Re
 
     let entry = CacheEntry {
         value,
-        expires_at: Instant::now() + config::media_cache_ttl()?,
+        expires_at: Instant::now() + config::media_cache_ttl(),
     };
 
     cache
@@ -65,7 +65,7 @@ pub static COLLECTIONS_REFRESH_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex
 fn put_model<T>(cache: &ModelCache<T>, value: Arc<T>) -> anyhow::Result<()> {
     let entry = CacheEntry {
         value,
-        expires_at: Instant::now() + config::model_cache_ttl()?,
+        expires_at: Instant::now() + config::model_cache_ttl(),
     };
 
     *cache.lock().expect("Model cache lock poisoned.") = Some(entry);

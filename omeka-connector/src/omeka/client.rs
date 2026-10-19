@@ -70,7 +70,7 @@ impl Client {
     }
 
     pub fn from_config(client: reqwest::Client) -> anyhow::Result<Self> {
-        Ok(Client::new(client, config::omeka_url()?))
+        Ok(Client::new(client, config::omeka_url().to_owned()))
     }
 
     pub async fn find(

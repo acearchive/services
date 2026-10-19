@@ -1,4 +1,9 @@
-use std::{env, path::PathBuf, sync::OnceLock, time::Duration};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    sync::OnceLock,
+    time::Duration,
+};
 
 #[derive(Debug, Clone)]
 pub struct DataExportConfig {
@@ -79,64 +84,39 @@ pub fn init_config() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn base_domain() -> anyhow::Result<String> {
-    Ok(CONFIG
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .base_domain
-        .clone())
+fn get() -> &'static Config {
+    CONFIG.get().expect("Config not initialized.")
 }
 
-pub fn omeka_url() -> anyhow::Result<reqwest::Url> {
-    Ok(CONFIG
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .omeka_url
-        .clone())
+pub fn base_domain() -> &'static str {
+    &get().base_domain
 }
 
-pub fn files_url() -> anyhow::Result<reqwest::Url> {
-    Ok(CONFIG
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .files_url
-        .clone())
+pub fn omeka_url() -> &'static reqwest::Url {
+    &get().omeka_url
 }
 
-pub fn port() -> anyhow::Result<u16> {
-    Ok(CONFIG
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .port)
+pub fn files_url() -> &'static reqwest::Url {
+    &get().files_url
 }
 
-pub fn scratch_dir() -> anyhow::Result<PathBuf> {
-    Ok(CONFIG
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .scratch_dir
-        .clone())
+pub fn port() -> u16 {
+    get().port
 }
 
-pub fn media_cache_ttl() -> anyhow::Result<Duration> {
-    Ok(CONFIG
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .media_cache_ttl)
+pub fn scratch_dir() -> &'static Path {
+    get().scratch_dir.as_path()
 }
 
-pub fn model_cache_ttl() -> anyhow::Result<Duration> {
-    Ok(CONFIG
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .model_cache_ttl)
+pub fn media_cache_ttl() -> Duration {
+    get().media_cache_ttl
 }
 
-/// Returns `None` if automatic data exports are disabled.
-pub fn data_export() -> anyhow::Result<Option<DataExportConfig>> {
-    Ok(CONFIG
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Config not initialized."))?
-        .data_export
-        .clone())
+pub fn model_cache_ttl() -> Duration {
+    get().model_cache_ttl
+}
+
+// Return `None` if automatic data exports are disabled.
+pub fn data_export() -> Option<&'static DataExportConfig> {
+    get().data_export.as_ref()
 }

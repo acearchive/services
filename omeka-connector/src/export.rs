@@ -96,8 +96,8 @@ async fn export(export_config: &DataExportConfig) -> anyhow::Result<String> {
     let tier = choose_tier(&bucket, now).await?;
     let key = format!("{}/{}.zip", tier.as_str(), stamp);
 
-    let scratch_dir = config::scratch_dir()?;
-    fs::create_dir_all(&scratch_dir)?;
+    let scratch_dir = config::scratch_dir();
+    fs::create_dir_all(scratch_dir)?;
     let path = scratch_dir.join(format!("{}{}.zip", SCRATCH_PREFIX, stamp));
 
     let result = async {
@@ -316,10 +316,10 @@ async fn upload(bucket: &Bucket, path: &Path, key: &str) -> anyhow::Result<()> {
 
 /// Remove archives left in the scratch directory by an export that was interrupted.
 fn remove_stale_archives() -> anyhow::Result<()> {
-    let scratch_dir = config::scratch_dir()?;
-    fs::create_dir_all(&scratch_dir)?;
+    let scratch_dir = config::scratch_dir();
+    fs::create_dir_all(scratch_dir)?;
 
-    for entry in fs::read_dir(&scratch_dir)? {
+    for entry in fs::read_dir(scratch_dir)? {
         let entry = entry?;
         let name = entry.file_name();
         let name = name.to_string_lossy();

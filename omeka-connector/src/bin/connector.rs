@@ -7,15 +7,15 @@ async fn main() {
     init_config().expect("Failed to load config.");
     let _logger = init_logger().expect("Failed to start logger.");
 
-    let port = config::port().expect("Failed to get port number from config.");
+    let port = config::port();
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
         .unwrap();
 
-    match config::data_export().expect("Failed to get data export config.") {
+    match config::data_export() {
         Some(export_config) => {
             log::info!("Data exports enabled.");
-            tokio::spawn(run_export_scheduler(export_config));
+            tokio::spawn(run_export_scheduler(export_config.to_owned()));
         }
         None => log::info!("Data exports disabled."),
     }

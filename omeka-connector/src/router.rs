@@ -309,10 +309,9 @@ async fn get_jsonld_collection(Path(name): Path<String>) -> Result<impl IntoResp
 
 #[axum::debug_handler]
 async fn get_asset_style() -> Result<impl IntoResponse, StatusCode> {
-    let base_domain =
-        config::base_domain().map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+    let base_domain = config::base_domain();
 
-    let css = render_css(&base_domain);
+    let css = render_css(base_domain);
 
     Ok((
         StatusCode::OK,

@@ -22,7 +22,7 @@ fn encode_segment(value: &str) -> String {
 pub fn artifact_long(slug: &omeka::AceSlug) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/artifacts/{}",
-        config::base_domain()?,
+        config::base_domain(),
         slug
     ))?)
 }
@@ -30,7 +30,7 @@ pub fn artifact_long(slug: &omeka::AceSlug) -> anyhow::Result<reqwest::Url> {
 pub fn artifact_short(id: &omeka::AceId) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/a/{}",
-        config::base_domain()?,
+        config::base_domain(),
         id
     ))?)
 }
@@ -39,7 +39,7 @@ pub fn file_long(
     slug: &omeka::AceSlug,
     filename: &omeka::AceFilename,
 ) -> anyhow::Result<reqwest::Url> {
-    let mut url = config::files_url()?;
+    let mut url = config::files_url().clone();
     url.path_segments_mut()
         .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
         .pop_if_empty()
@@ -54,7 +54,7 @@ pub fn file_short(
     id: &omeka::AceId,
     filename: &omeka::AceFilename,
 ) -> anyhow::Result<reqwest::Url> {
-    let mut url = config::files_url()?;
+    let mut url = config::files_url().clone();
     url.path_segments_mut()
         .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
         .pop_if_empty()
@@ -66,7 +66,7 @@ pub fn file_short(
 }
 
 pub fn file_raw(id: &omeka::AceId, filename: &omeka::AceFilename) -> anyhow::Result<reqwest::Url> {
-    let mut url = config::files_url()?;
+    let mut url = config::files_url().clone();
     url.path_segments_mut()
         .map_err(|_| anyhow::anyhow!("Cannot modify URL path segments."))?
         .pop_if_empty()
@@ -80,7 +80,7 @@ pub fn file_raw(id: &omeka::AceId, filename: &omeka::AceFilename) -> anyhow::Res
 pub fn person(name: &str) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/people/{}",
-        config::base_domain()?,
+        config::base_domain(),
         encode_segment(name)
     ))?)
 }
@@ -88,7 +88,7 @@ pub fn person(name: &str) -> anyhow::Result<reqwest::Url> {
 pub fn identity(name: &str) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/identities/{}",
-        config::base_domain()?,
+        config::base_domain(),
         encode_segment(name)
     ))?)
 }
@@ -96,14 +96,14 @@ pub fn identity(name: &str) -> anyhow::Result<reqwest::Url> {
 pub fn identities() -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/identities",
-        config::base_domain()?,
+        config::base_domain(),
     ))?)
 }
 
 pub fn collection(name: &str) -> anyhow::Result<reqwest::Url> {
     Ok(reqwest::Url::parse(&format!(
         "https://{}/collections/{}",
-        config::base_domain()?,
+        config::base_domain(),
         encode_segment(name)
     ))?)
 }

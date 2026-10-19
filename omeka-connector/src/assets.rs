@@ -57,7 +57,7 @@ impl FilePageContext {
     pub fn from_location(location: &MediaLocation) -> Result<Self, anyhow::Error> {
         Ok(Self {
             title: location.filename.to_string(),
-            base_domain: config::base_domain()?,
+            base_domain: config::base_domain().to_owned(),
             page_url: location.page_url.to_string(),
             raw_url: location.raw_url.to_string(),
             short_url: location.short_url.to_string(),
