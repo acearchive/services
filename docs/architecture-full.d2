@@ -92,6 +92,10 @@ cf: "Cloudflare" {
   backups: "Backups\nBucket" {
     shape: "cylinder"
   }
+
+  exports: "Exports\nBucket" {
+    shape: "cylinder"
+  }
 }
 
 github: "GitHub" {
@@ -122,6 +126,7 @@ github.site -> vps.proxy: "Fetch Data"
 vps.omeka -> vps.mysql: "Store Data"
 vps.omeka -> vps.drive: "Store Files"
 vps.connector -> vps.omeka: "Call API"
+vps.connector -> cf.exports: "Export"
 vps.proxy -> vps.omeka: "Forward"
 vps.proxy -> vps.connector: "Forward"
 vps.proxy -> vps.umami: "Forward"

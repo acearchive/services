@@ -60,6 +60,10 @@ cf: "Cloudflare" {
   backups: "Backups\nBucket" {
     shape: "cylinder"
   }
+
+  exports: "Exports\nBucket" {
+    shape: "cylinder"
+  }
 }
 
 visitor -> cf.cdn: "Visit Site"
@@ -68,6 +72,7 @@ visitor -> cf.proxy: "View File"
 vps.proxy -> vps.omeka: "Forward"
 vps.proxy -> vps.connector: "Forward"
 vps.connector -> vps.omeka: "Call API"
+vps.connector -> cf.exports: "Export"
 vps.backups -> cf.backups: "Store"
 
 cf.proxy -> vps.proxy: "Forward"
