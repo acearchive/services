@@ -64,9 +64,9 @@ fn jsonld_response(serializer: ModelSerializer) -> Result<impl IntoResponse, Sta
     ))
 }
 
-// Documents for individual entities are intended to be embedded in public web pages, so they omit
-// project-specific terms.
-fn entity_serializer() -> ModelSerializer {
+// Documents served by the API are public, so they omit project-specific terms. The data export
+// includes them.
+fn public_serializer() -> ModelSerializer {
     ModelSerializer::new(ModelOptions {
         include_private_terms: false,
     })
@@ -211,9 +211,7 @@ async fn get_jsonld() -> Result<impl IntoResponse, StatusCode> {
         .await
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
 
-    let mut serializer = ModelSerializer::new(ModelOptions {
-        include_private_terms: true,
-    });
+    let mut serializer = public_serializer();
 
     serializer
         .add_items(&items)
@@ -230,7 +228,7 @@ async fn get_jsonld_item(Path(id): Path<omeka::AceId>) -> Result<impl IntoRespon
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let mut serializer = entity_serializer();
+    let mut serializer = public_serializer();
 
     serializer
         .add_item(&item)
@@ -249,7 +247,7 @@ async fn get_jsonld_file(
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let mut serializer = entity_serializer();
+    let mut serializer = public_serializer();
 
     serializer
         .add_file(&file, &id)
@@ -266,7 +264,7 @@ async fn get_jsonld_person(Path(name): Path<String>) -> Result<impl IntoResponse
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let mut serializer = entity_serializer();
+    let mut serializer = public_serializer();
 
     serializer
         .add_person_document(&person, &items)
@@ -283,7 +281,7 @@ async fn get_jsonld_identity(Path(name): Path<String>) -> Result<impl IntoRespon
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let mut serializer = entity_serializer();
+    let mut serializer = public_serializer();
 
     serializer
         .add_identity_document(&identity, &items)
@@ -300,7 +298,7 @@ async fn get_jsonld_collection(Path(name): Path<String>) -> Result<impl IntoResp
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let mut serializer = entity_serializer();
+    let mut serializer = public_serializer();
 
     serializer
         .add_collection_document(&collection, &items)
