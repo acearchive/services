@@ -2,7 +2,6 @@ use std::{
     fs,
     io::{self, Write},
     path::{Component, Path},
-    time::Duration,
 };
 
 use chrono::{DateTime, Datelike, Days, NaiveDateTime, NaiveTime, Utc};
@@ -14,7 +13,7 @@ use crate::{
     assets,
     config::{self, DataExportConfig},
     models::Item,
-    omeka,
+    omeka, ping,
     rdf::{ModelOptions, ModelSerializer},
     resolver::Resolver,
 };
@@ -22,7 +21,6 @@ use crate::{
 const STAMP_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const LATEST_KEY: &str = "latest.zip";
 const SCRATCH_PREFIX: &str = "data-export-";
-const PING_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Tier {
@@ -357,15 +355,5 @@ async fn ping(export_config: &DataExportConfig, kind: PingKind) {
         None => base_url.to_string(),
     };
 
-    let result = reqwest::Client::new()
-        .get(url)
-        .timeout(PING_TIMEOUT)
-        .send()
-        .await
-        .and_then(reqwest::Response::error_for_status);
-
-    // The ping URL is a secret, so keep it out of the logs.
-    if let Err(err) = result {
-        log::warn!("Failed to ping healthcheck endpoint: {}", err.without_url());
-    }
+    ping::send(&url).await;
 }

@@ -16,6 +16,12 @@ pub struct DataExportConfig {
     pub healthcheck_ping_url: Option<reqwest::Url>,
 }
 
+#[derive(Debug, Clone)]
+pub struct HeartbeatConfig {
+    pub cron_spec: croner::Cron,
+    pub ping_url: reqwest::Url,
+}
+
 struct Config {
     base_domain: String,
     omeka_url: reqwest::Url,
@@ -25,6 +31,7 @@ struct Config {
     media_cache_ttl: Duration,
     model_cache_ttl: Duration,
     data_export: Option<DataExportConfig>,
+    heartbeat: Option<HeartbeatConfig>,
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
@@ -63,6 +70,19 @@ fn init_data_export_config() -> anyhow::Result<Option<DataExportConfig>> {
     }))
 }
 
+fn init_heartbeat_config() -> anyhow::Result<Option<HeartbeatConfig>> {
+    let Some(cron_spec) = optional_var("HEARTBEAT_CRON_SPEC")? else {
+        return Ok(None);
+    };
+
+    Ok(Some(HeartbeatConfig {
+        cron_spec: cron_spec
+            .parse()
+            .map_err(|err| anyhow::anyhow!("Invalid HEARTBEAT_CRON_SPEC: {}", err))?,
+        ping_url: reqwest::Url::parse(&required_var("HEARTBEAT_PING_URL")?)?,
+    }))
+}
+
 pub fn init_config() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
@@ -75,6 +95,7 @@ pub fn init_config() -> anyhow::Result<()> {
         media_cache_ttl: Duration::from_secs(env::var("MEDIA_CACHE_TTL_SECS")?.parse::<u64>()?),
         model_cache_ttl: Duration::from_secs(env::var("MODEL_CACHE_TTL_SECS")?.parse::<u64>()?),
         data_export: init_data_export_config()?,
+        heartbeat: init_heartbeat_config()?,
     };
 
     CONFIG
@@ -119,4 +140,9 @@ pub fn model_cache_ttl() -> Duration {
 // Return `None` if automatic data exports are disabled.
 pub fn data_export() -> Option<&'static DataExportConfig> {
     get().data_export.as_ref()
+}
+
+// Return `None` if heartbeat pings are disabled.
+pub fn heartbeat() -> Option<&'static HeartbeatConfig> {
+    get().heartbeat.as_ref()
 }

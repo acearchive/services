@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
-use acearchive_data_connector::{config, init_config, init_logger, router, run_export_scheduler};
+use acearchive_data_connector::{
+    config, init_config, init_logger, router, run_export_scheduler, run_heartbeat_scheduler,
+};
 
 #[tokio::main]
 async fn main() {
@@ -18,6 +20,14 @@ async fn main() {
             tokio::spawn(run_export_scheduler(export_config.to_owned()));
         }
         None => log::info!("Data exports disabled."),
+    }
+
+    match config::heartbeat() {
+        Some(heartbeat_config) => {
+            log::info!("Heartbeat pings enabled.");
+            tokio::spawn(run_heartbeat_scheduler(heartbeat_config.to_owned()));
+        }
+        None => log::info!("Heartbeat pings disabled."),
     }
 
     log::info!("Server starting.");

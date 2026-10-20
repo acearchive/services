@@ -122,6 +122,11 @@ from a `.env` file if one is available.
 - `DATA_EXPORT_S3_SECRET_ACCESS_KEY`: The S3 secret access key.
 - `DATA_EXPORT_HEALTHCHECK_PING_URL`: An optional
   [Healthchecks.io](https://healthchecks.io) ping URL.
+- `HEARTBEAT_CRON_SPEC`: A cron spec which determines the frequency of
+  heartbeat pings, evaluated in UTC. If unset, heartbeat pings are disabled,
+  and `HEARTBEAT_PING_URL` is ignored.
+- `HEARTBEAT_PING_URL`: A [Healthchecks.io](https://healthchecks.io) ping URL
+  for heartbeat pings.
 
 ## Deployment
 
@@ -129,3 +134,7 @@ A CI workflow publishes a container image to
 `ghcr.io/acearchive/omeka-connector` from `main`. The image includes a
 healthcheck binary at `/usr/local/bin/healthcheck` which checks the server's
 `/health` endpoint.
+
+If heartbeat pings are configured, this service also pings a
+[Healthchecks.io](https://healthchecks.io) endpoint on a schedule, so we are
+notified if the service or the host it runs on go down.
