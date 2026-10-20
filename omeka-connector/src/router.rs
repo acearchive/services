@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use axum::{
     Json, Router,
@@ -12,7 +12,7 @@ use axum::{
 use super::{
     assets::render_css,
     assets::{FilePage, FilePageContext},
-    config,
+    config, homosaurus,
     hugo::{CollectionMetadata, Item, Tag},
     omeka,
     rdf::{ModelOptions, ModelSerializer},
@@ -185,16 +185,20 @@ async fn get_hugo_metadata() -> Result<Json<CollectionMetadata>, StatusCode> {
     let client = reqwest::Client::new();
     let omeka_client = omeka::Client::from_config(client.clone())
         .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+    let homosaurus_client = homosaurus::Client::new(client);
     let resolver = Resolver::new(omeka_client);
 
+    let (collections, identities) = tokio::try_join!(
+        resolver.list_all_collections(),
+        resolver.list_all_identities(&homosaurus_client),
+    )
+    .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?;
+
     Ok(Json(CollectionMetadata {
-        tags: resolver
-            .list_all_collections()
-            .await
-            .map_err(map_error(StatusCode::INTERNAL_SERVER_ERROR))?
-            .iter()
-            .cloned()
+        tags: Arc::unwrap_or_clone(collections)
+            .into_iter()
             .map(Tag::from)
+            .chain(identities.into_iter().map(Tag::from))
             .collect(),
     }))
 }

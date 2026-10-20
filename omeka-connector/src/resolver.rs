@@ -1,11 +1,43 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+
+use serde::de::DeserializeOwned;
 
 use super::{
-    cache,
-    models::{Collection, File, Identity, Item, Lang, Link, Person},
+    cache, homosaurus,
+    models::{Collection, File, Identity, Item, Lang, Link, LocalizedString, Person},
     omeka,
 };
 use crate::url;
+
+fn identity_from_value(
+    internal_id: omeka::InternalId,
+    value: omeka::SuggestedPropertyValue,
+) -> Identity {
+    match value {
+        omeka::SuggestedPropertyValue::Literal(value) => Identity {
+            name: value.into(),
+            url: None,
+            description: None,
+        },
+        omeka::SuggestedPropertyValue::Url(value) => Identity {
+            name: value.localized_title(),
+            url: reqwest::Url::parse(&value.url)
+                .inspect_err(|err| {
+                    log::warn!(
+                        "Item with internal ID `{}` has an invalid subject URL `{}`: {}",
+                        internal_id,
+                        value.url,
+                        err,
+                    );
+                })
+                .ok(),
+            description: None,
+        },
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum MediaLocator {
@@ -93,6 +125,24 @@ pub struct Resolver {
 impl Resolver {
     pub fn new(client: omeka::Client) -> Self {
         Resolver { client }
+    }
+
+    /// Return every resource matching the query, following pagination.
+    async fn find_all<T: DeserializeOwned>(
+        &self,
+        resource: omeka::ResourceType,
+        query: &omeka::FindQuery,
+    ) -> anyhow::Result<Vec<T>> {
+        let (mut response, mut maybe_next_page) = self.client.find(resource, query).await?;
+
+        let mut responses = response.json::<Vec<T>>().await?;
+
+        while let Some(page) = maybe_next_page {
+            (response, maybe_next_page) = self.client.next_page(page).await?;
+            responses.extend(response.json::<Vec<T>>().await?);
+        }
+
+        Ok(responses)
     }
 
     /// Resolve Ace Archive identifiers to an Omeka internal item ID.
@@ -485,9 +535,8 @@ impl Resolver {
         // collecting them in memory is going to be much faster than the alternative.
         //
         // TODO: Can these API calls be made concurrent?
-        let (mut response, mut maybe_next_page) = self
-            .client
-            .find(
+        let item_responses = self
+            .find_all::<omeka::ItemResponse>(
                 omeka::ResourceType::Item,
                 &omeka::FindQuery::new()
                     .has_property(omeka::Property::AceId)
@@ -495,36 +544,16 @@ impl Resolver {
             )
             .await?;
 
-        let mut item_responses = response.json::<Vec<omeka::ItemResponse>>().await?;
-
-        while let Some(page) = maybe_next_page {
-            (response, maybe_next_page) = self.client.next_page(page).await?;
-            item_responses.extend(response.json::<Vec<omeka::ItemResponse>>().await?);
-        }
-
-        let (mut response, mut maybe_next_page) = self
-            .client
-            .find(omeka::ResourceType::ItemSet, &omeka::FindQuery::new())
+        let item_set_responses = self
+            .find_all::<omeka::ItemSetResponse>(
+                omeka::ResourceType::ItemSet,
+                &omeka::FindQuery::new(),
+            )
             .await?;
 
-        let mut item_set_responses = response.json::<Vec<omeka::ItemSetResponse>>().await?;
-
-        while let Some(page) = maybe_next_page {
-            (response, maybe_next_page) = self.client.next_page(page).await?;
-            item_set_responses.extend(response.json::<Vec<omeka::ItemSetResponse>>().await?);
-        }
-
-        let (mut response, mut maybe_next_page) = self
-            .client
-            .find(omeka::ResourceType::Media, &omeka::FindQuery::new())
+        let media_responses = self
+            .find_all::<omeka::MediaResponse>(omeka::ResourceType::Media, &omeka::FindQuery::new())
             .await?;
-
-        let mut media_responses = response.json::<Vec<omeka::MediaResponse>>().await?;
-
-        while let Some(page) = maybe_next_page {
-            (response, maybe_next_page) = self.client.next_page(page).await?;
-            media_responses.extend(response.json::<Vec<omeka::MediaResponse>>().await?);
-        }
 
         let item_set_responses_by_id: HashMap<omeka::InternalId, omeka::ItemSetResponse> =
             item_set_responses
@@ -611,25 +640,7 @@ impl Resolver {
                 let identities = item_response
                     .subject
                     .into_iter()
-                    .map(|value| match value {
-                        omeka::SuggestedPropertyValue::Literal(value) => Identity {
-                            name: value.into(),
-                            url: None,
-                        },
-                        omeka::SuggestedPropertyValue::Url(value) => Identity {
-                            name: value.localized_title(),
-                            url: reqwest::Url::parse(&value.url)
-                                .inspect_err(|err| {
-                                    log::warn!(
-                                        "Item with internal ID `{}` has an invalid subject URL `{}`: {}",
-                                        item_response.internal_id,
-                                        value.url,
-                                        err,
-                                    );
-                                })
-                                .ok(),
-                        },
-                    })
+                    .map(|value| identity_from_value(item_response.internal_id, value))
                     .collect();
                 let collections = item_response
                     .item_set
@@ -698,17 +709,12 @@ impl Resolver {
     }
 
     async fn fetch_all_collections(&self) -> anyhow::Result<Vec<Collection>> {
-        let (mut response, mut maybe_next_page) = self
-            .client
-            .find(omeka::ResourceType::ItemSet, &omeka::FindQuery::new())
+        let item_set_responses = self
+            .find_all::<omeka::ItemSetResponse>(
+                omeka::ResourceType::ItemSet,
+                &omeka::FindQuery::new(),
+            )
             .await?;
-
-        let mut item_set_responses = response.json::<Vec<omeka::ItemSetResponse>>().await?;
-
-        while let Some(page) = maybe_next_page {
-            (response, maybe_next_page) = self.client.next_page(page).await?;
-            item_set_responses.extend(response.json::<Vec<omeka::ItemSetResponse>>().await?);
-        }
 
         Ok(item_set_responses
             .into_iter()
@@ -723,5 +729,64 @@ impl Resolver {
                 })
             })
             .collect())
+    }
+
+    /// Return every identity used in the archive.
+    ///
+    /// Identities from Homosaurus include their English definition.
+    pub async fn list_all_identities(
+        &self,
+        homosaurus: &homosaurus::Client,
+    ) -> anyhow::Result<Vec<Identity>> {
+        let items = self.list_all_items().await?;
+
+        let mut seen_names = HashSet::new();
+        let mut identities = Vec::new();
+
+        for identity in items.iter().flat_map(|item| &item.identities) {
+            if seen_names.insert(identity.name.value.as_str()) {
+                identities.push(identity.clone());
+            }
+        }
+
+        let mut definition_tasks = tokio::task::JoinSet::new();
+
+        for (index, identity) in identities.iter().enumerate() {
+            let Some(url) = identity.url.clone().filter(homosaurus::is_homosaurus_url) else {
+                continue;
+            };
+
+            let homosaurus = homosaurus.clone();
+
+            definition_tasks.spawn(async move {
+                let definition = homosaurus.english_definition(&url).await;
+                (index, url, definition)
+            });
+        }
+
+        while let Some(result) = definition_tasks.join_next().await {
+            let (index, url, definition) = result?;
+
+            match definition {
+                Ok(Some(definition)) => {
+                    identities[index].description = Some(LocalizedString {
+                        value: definition,
+                        lang: Some(Lang::new("en")),
+                    });
+                }
+                Ok(None) => {
+                    log::warn!("Homosaurus term `{}` has no English definition.", url);
+                }
+                Err(err) => {
+                    log::warn!(
+                        "Failed to fetch definition of Homosaurus term `{}`: {}",
+                        url,
+                        err,
+                    );
+                }
+            }
+        }
+
+        Ok(identities)
     }
 }

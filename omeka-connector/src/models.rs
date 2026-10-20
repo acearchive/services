@@ -74,6 +74,8 @@ pub struct Identity {
     // An identity may come from a controlled vocabulary (e.g. Homosaurus), in which case it has a
     // URL, or it may be a free-text label.
     pub url: Option<reqwest::Url>,
+    // The definition of the identity from its controlled vocabulary, if it has one.
+    pub description: Option<LocalizedString>,
 }
 
 #[derive(Debug, Clone)]

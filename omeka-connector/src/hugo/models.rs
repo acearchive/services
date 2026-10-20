@@ -45,6 +45,7 @@ pub struct Item {
 #[serde(rename_all = "lowercase")]
 pub enum TagKind {
     Collection,
+    Identity,
 }
 
 #[derive(Debug, Serialize)]
@@ -134,6 +135,16 @@ impl From<models::Collection> for Tag {
             name: collection.title.value,
             kind: TagKind::Collection,
             description: collection.description.map(|description| description.value),
+        }
+    }
+}
+
+impl From<models::Identity> for Tag {
+    fn from(identity: models::Identity) -> Self {
+        Tag {
+            name: identity.name.value,
+            kind: TagKind::Identity,
+            description: identity.description.map(|description| description.value),
         }
     }
 }

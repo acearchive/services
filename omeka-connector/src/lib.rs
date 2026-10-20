@@ -4,6 +4,7 @@ mod assets;
 mod cache;
 pub mod config;
 mod export;
+mod homosaurus;
 mod hugo;
 mod logger;
 mod models;
